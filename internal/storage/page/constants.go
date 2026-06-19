@@ -1,11 +1,6 @@
 package page
 
 const (
-	PageSize       = 4096
-	PageHeaderSize = 64
-
-	SlotSize = 4
-
 	PageIDOffset = 0
 	PageIDSize   = 8
 

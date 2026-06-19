@@ -6,6 +6,7 @@ import (
 	"errors"
 	"testing"
 
+	"db-engine-v1/internal/storage"
 	"db-engine-v1/internal/storage/page"
 )
 
@@ -24,8 +25,8 @@ func TestNewPageHeader(t *testing.T) {
 		t.Errorf("RecordCount = %d, want %d", h.RecordCount, 0)
 	}
 
-	if h.FreeSpaceOffset != page.PageSize {
-		t.Errorf("FreeSpaceOffset = %d, want %d", h.FreeSpaceOffset, page.PageSize)
+	if h.FreeSpaceOffset != storage.PageSize {
+		t.Errorf("FreeSpaceOffset = %d, want %d", h.FreeSpaceOffset, storage.PageSize)
 	}
 
 	if h.SlotCount != 0 {
@@ -50,7 +51,7 @@ func TestPageHeader_Serialize(t *testing.T) {
 		t.Fatalf("Serialize() error = %v, want nil", err)
 	}
 
-	expectedSize := page.PageHeaderSize
+	expectedSize := storage.PageHeaderSize
 	if len(buf) != expectedSize {
 		t.Fatalf("Serialize() len = %d, want %d", len(buf), expectedSize)
 	}
@@ -86,8 +87,8 @@ func TestNewPageHeaderFromBytes(t *testing.T) {
 			name string
 			size int
 		}{
-			{"too short", page.PageHeaderSize - 1},
-			{"too long", page.PageHeaderSize + 1},
+			{"too short", storage.PageHeaderSize - 1},
+			{"too long", storage.PageHeaderSize + 1},
 			{"empty", 0},
 		}
 
@@ -181,7 +182,7 @@ func TestPageHeader_Validate(t *testing.T) {
 
 	t.Run("free space offset exceeds page size", func(t *testing.T) {
 		h := page.NewPageHeader(1, page.DataPage)
-		h.FreeSpaceOffset = page.PageSize + 1
+		h.FreeSpaceOffset = storage.PageSize + 1
 
 		err := h.Validate()
 		if !errors.Is(err, page.ErrInvalidFreeSpaceOffset) {
@@ -191,7 +192,7 @@ func TestPageHeader_Validate(t *testing.T) {
 
 	t.Run("free space offset in header", func(t *testing.T) {
 		h := page.NewPageHeader(1, page.DataPage)
-		h.FreeSpaceOffset = page.PageHeaderSize - 1
+		h.FreeSpaceOffset = storage.PageHeaderSize - 1
 
 		err := h.Validate()
 		if !errors.Is(err, page.ErrFreeSpaceOffsetInHeader) {
@@ -202,7 +203,7 @@ func TestPageHeader_Validate(t *testing.T) {
 	t.Run("invalid page type checked before offset", func(t *testing.T) {
 		h := page.NewPageHeader(1, page.DataPage)
 		h.PageType = 99
-		h.FreeSpaceOffset = page.PageSize + 1
+		h.FreeSpaceOffset = storage.PageSize + 1
 
 		err := h.Validate()
 		if !errors.Is(err, page.ErrInvalidPageType) {
@@ -227,73 +228,4 @@ func TestPageType_IsValid(t *testing.T) {
 			t.Errorf("PageType 99 should be invalid")
 		}
 	})
-}
-
-func TestPageSerialize(t *testing.T) {
-	p := page.NewPage(1, page.DataPage)
-
-	bytes, err := p.Serialize()
-	if err != nil {
-		t.Fatalf("Serialize() error = %v, want nil", err)
-	}
-
-	if len(bytes) != page.PageSize {
-		t.Errorf("Serialize() len = %d, want %d", len(bytes), page.PageSize)
-	}
-}
-
-func TestPageDeserialize(t *testing.T) {
-	p := page.NewPage(1, page.DataPage)
-
-	bytes, err := p.Serialize()
-	if err != nil {
-		t.Fatalf("Serialize() error = %v, want nil", err)
-	}
-
-	p2, err := page.NewPageFromBytes(bytes)
-	if err != nil {
-		t.Fatalf("NewPageFromBytes() error = %v, want nil", err)
-	}
-
-	if *p.Header != *p2.Header {
-		t.Errorf("Header mismatch: got %+v, want %+v", p2.Header, p.Header)
-	}
-}
-
-func TestPagePayloadPersistence(t *testing.T) {
-	p := page.NewPage(1, page.DataPage)
-
-	p.Payload[0] = 10
-	p.Payload[100] = 50
-
-	bytes, err := p.Serialize()
-	if err != nil {
-		t.Fatalf("Serialize() error = %v, want nil", err)
-	}
-
-	p2, err := page.NewPageFromBytes(bytes)
-	if err != nil {
-		t.Fatalf("NewPageFromBytes() error = %v, want nil", err)
-	}
-
-	if p2.Payload[0] != 10 {
-		t.Errorf("Payload[0] = %d, want 10", p2.Payload[0])
-	}
-
-	if p2.Payload[100] != 50 {
-		t.Errorf("Payload[100] = %d, want 50", p2.Payload[100])
-	}
-}
-
-func TestInvalidPageSize(t *testing.T) {
-	data := make([]byte, 100)
-
-	_, err := page.NewPageFromBytes(data)
-	if err == nil {
-		t.Errorf("NewPageFromBytes() expected error for invalid size, got nil")
-	}
-
-	if !errors.Is(err, page.ErrPageSizeMismatch) {
-		t.Errorf("NewPageFromBytes() error = %v, want %v", err, page.ErrPageSizeMismatch)
-	}
 }

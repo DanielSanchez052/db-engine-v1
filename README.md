@@ -76,86 +76,114 @@ database.db
 
 ---
 
-# Filosofía de Diseño
+# Arquitectura Decidida
 
-GO DB Engine V1 adopta una filosofía similar a SQLite:
+Esta sección documenta las decisiones arquitectónicas que forman parte del contrato fundamental de MiniDB.
 
-- Embedded Database
+Las decisiones aquí registradas se consideran estables y cualquier modificación futura debe evaluarse cuidadosamente debido a su impacto sobre la compatibilidad de los archivos persistidos.
+
+---
+
+## Tipo de Motor
+
+MiniDB es un motor:
+
+```text
+Embedded Database
+```
+
+Características:
+
 - Sin servidor
 - Sin sockets
 - Sin protocolo de red
+- Integración directa como librería
 - Acceso directo a archivos
 
-La base de datos es consumida como una librería dentro de una aplicación.
+Inspiración:
+
+- SQLite
+
+---
+
+## Lenguaje
+
+```text
+Go
+```
+
+Motivaciones:
+
+- Simplicidad
+- Excelente soporte para sistemas
+- Manejo eficiente de archivos
+- Binarios estáticos
+- Biblioteca estándar robusta
+
+---
+
+## Dependencias
+
+Objetivo:
+
+```text
+Standard Library Only
+```
+
+MiniDB intentará minimizar dependencias externas para comprender e implementar cada componente internamente.
+
+---
+
+## Persistencia
+
+La persistencia se realiza mediante archivos separados.
+
+```text
+database.db
+catalog.db
+```
+
+### database.db
+
+Contiene:
+
+- Database Header
+- Data Pages
+- Index Pages (futuro)
+
+### catalog.db
+
+Contiene:
+
+- Tablas
+- Columnas
+- Metadatos
+
+---
+
+## Tamaño de Página
+
+Todas las páginas utilizan tamaño fijo.
+
+```text
+4096 bytes
+```
+
+Constante:
 
 ```go
-db, err := gedb.Open("database.db")
+const PageSize = 4096
 ```
 
----
+Motivaciones:
 
-# Estructura del Proyecto
-
-```text
-gedb/
-│
-├── cmd/
-│   └── gedb/
-│
-├── internal/
-│   │
-│   ├── storage/
-│   │   ├── database/
-│   │   ├── filemanager/
-│   │   ├── page/
-│   │   ├── slot/
-│   │   └── pager/
-│   │
-│   ├── catalog/
-│   ├── executor/
-│   ├── parser/
-│   └── engine/
-│
-├── test/
-│
-└── data/
-```
+- Simplicidad
+- Alineación con sistemas reales
+- Fácil administración de offsets
 
 ---
 
-# Persistencia
-
-GO DB Engine V1 utiliza dos archivos físicos.
-
-## database.db
-
-Contiene:
-
-- Header de base de datos
-- Páginas de datos
-- Páginas de índices (futuro)
-
-## catalog.db
-
-Contiene:
-
-- Definiciones de tablas
-- Columnas
-- Metadatos del sistema
-
----
-
-# Formato de Página
-
-Todas las páginas tienen tamaño fijo.
-
-```text
-Page Size = 4096 bytes
-```
-
----
-
-## Distribución
+## Layout General de Página
 
 ```text
 ┌────────────────────┐
@@ -163,15 +191,19 @@ Page Size = 4096 bytes
 ├────────────────────┤
 │ Payload            │ 4032 bytes
 └────────────────────┘
-
-Total = 4096 bytes
 ```
 
 ---
 
-# Database Header
+## Database Header
 
-La página 0 está reservada para información global de la base de datos.
+La página cero está reservada para metadatos globales.
+
+```text
+Page 0
+```
+
+Layout:
 
 ```text
 Offset  Size  Field
@@ -184,7 +216,7 @@ Offset  Size  Field
 24      40    Reserved
 ```
 
-Tamaño total:
+Tamaño:
 
 ```text
 64 bytes
@@ -192,9 +224,11 @@ Tamaño total:
 
 ---
 
-# Page Header
+## Page Header
 
 Cada página contiene un encabezado propio.
+
+Layout:
 
 ```text
 Offset  Size  Field
@@ -207,7 +241,7 @@ Offset  Size  Field
 15      49    Reserved
 ```
 
-Tamaño total:
+Tamaño:
 
 ```text
 64 bytes
@@ -215,39 +249,49 @@ Tamaño total:
 
 ---
 
-# Tipos de Página
+## Endianness
 
-```go
-const (
-    DataPage PageType = iota
-    IndexPage
-    CatalogPage
-)
-```
-
----
-
-# Formato Binario
-
-Todos los formatos binarios utilizan:
+Todo el formato binario utiliza:
 
 ```text
 Little Endian
 ```
 
-y offsets explícitos.
+MiniDB no depende del layout interno de los structs de Go.
 
-GO DB Engine V1 no depende del layout interno de los structs de Go.
+Toda serialización se realiza mediante offsets explícitos.
 
 ---
 
-# Layout de Registros (Objetivo)
+## Formato de Registros
 
-Las páginas de datos utilizarán el patrón:
+Los registros serán almacenados como:
+
+```go
+type Record []byte
+```
+
+El Storage Engine no conoce:
+
+- Tablas
+- Columnas
+- Tipos
+
+Solo administra bytes.
+
+La interpretación de los registros será responsabilidad de capas superiores.
+
+---
+
+## Layout Interno de Páginas
+
+MiniDB utilizará:
 
 ```text
-Slotted Page
+Slotted Pages
 ```
+
+Layout objetivo:
 
 ```text
 ┌────────────────────┐
@@ -261,12 +305,79 @@ Slotted Page
 └────────────────────┘
 ```
 
-Esto permitirá:
+Motivaciones:
 
 - Inserciones eficientes
 - Eliminaciones lógicas
 - Reutilización de espacio
-- Movimiento de registros sin invalidar referencias
+- Independencia entre ubicación física y referencias
+
+---
+
+## Eliminación de Registros
+
+Un slot eliminado se representará mediante:
+
+```text
+RecordOffset = 0
+RecordLength = 0
+```
+
+Esto permitirá reutilizar slots sin reorganizar el directorio completo.
+
+---
+
+## Propiedad de Archivos
+
+El acceso a disco se realiza mediante:
+
+```go
+type FileManager struct {
+    file *os.File
+}
+```
+
+FileManager es propietario del descriptor de archivo.
+
+No se utilizan interfaces de abstracción en la V1.
+
+---
+
+## Alcance de la V1
+
+Incluido:
+
+- Storage Engine
+- Catálogo
+- CREATE TABLE
+- INSERT
+- SELECT *
+
+Excluido:
+
+- Índices
+- JOIN
+- Foreign Keys
+- WAL
+- MVCC
+- Query Optimizer
+- Concurrencia
+- Cliente/Servidor
+
+---
+
+## Compatibilidad
+
+Una vez existan bases de datos persistidas, las siguientes características se consideran parte del formato estable:
+
+- Page Size
+- Database Header
+- Page Header
+- Endianness
+- Slotted Pages
+- Magic Number
+
+Cualquier cambio deberá tratarse como una nueva versión del formato de almacenamiento.
 
 ---
 

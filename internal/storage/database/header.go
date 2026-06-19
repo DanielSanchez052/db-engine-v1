@@ -1,6 +1,7 @@
 package database
 
 import (
+	"db-engine-v1/internal/storage"
 	"encoding/binary"
 )
 
@@ -17,7 +18,7 @@ func NewDatabaseHeader() *DatabaseHeader {
 	return &DatabaseHeader{
 		MagicNumber:  MagicNumber,
 		Version:      Version,
-		PageSize:     PageSize,
+		PageSize:     storage.PageSize,
 		TotalPages:   1,
 		FreePageHead: 0,
 		Reserved:     [40]byte{},
@@ -29,7 +30,7 @@ func (h *DatabaseHeader) Serialize() ([]byte, error) {
 		return nil, err
 	}
 
-	buf := make([]byte, DatabaseHeaderSize)
+	buf := make([]byte, storage.DatabaseHeaderSize)
 
 	copy(buf[MagicNumberOffset:], h.MagicNumber[:])
 	binary.LittleEndian.PutUint16(buf[VersionOffset:], h.Version)
@@ -42,7 +43,7 @@ func (h *DatabaseHeader) Serialize() ([]byte, error) {
 }
 
 func NewDatabaseHeaderFromBytes(data []byte) (*DatabaseHeader, error) {
-	if len(data) != DatabaseHeaderSize {
+	if len(data) != storage.DatabaseHeaderSize {
 		return nil, ErrHeaderSizeMismatch
 	}
 
@@ -67,7 +68,7 @@ func (h *DatabaseHeader) Validate() error {
 		return ErrInvalidMagicNumber
 	}
 
-	if h.PageSize != PageSize {
+	if h.PageSize != storage.PageSize {
 		return ErrInvalidPageSize
 	}
 

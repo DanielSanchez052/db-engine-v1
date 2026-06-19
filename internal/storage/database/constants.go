@@ -1,8 +1,6 @@
 package database
 
 const (
-	DatabaseHeaderSize = 64
-
 	MagicNumberOffset = 0
 	MagicNumberSize   = 4
 
@@ -19,10 +17,8 @@ const (
 	FreePageHeadSize   = 8
 
 	ReservedOffset = 24
-	ReservedSize   = 49
+	ReservedSize   = 40
 )
-
-const PageSize = 4096
 
 var MagicNumber = [4]byte{'M', 'N', 'D', 'B'}
 var Version = uint16(1)

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"testing"
 
+	"db-engine-v1/internal/storage"
 	"db-engine-v1/internal/storage/database"
 )
 
@@ -21,8 +22,8 @@ func TestNewDatabaseHeader(t *testing.T) {
 		t.Errorf("Version = %d, want %d", h.Version, 1)
 	}
 
-	if h.PageSize != database.PageSize {
-		t.Errorf("PageSize = %d, want %d", h.PageSize, database.PageSize)
+	if h.PageSize != storage.PageSize {
+		t.Errorf("PageSize = %d, want %d", h.PageSize, storage.PageSize)
 	}
 
 	if h.TotalPages != 1 {
@@ -42,7 +43,6 @@ func TestNewDatabaseHeader(t *testing.T) {
 func TestDatabaseHeader_Serialize(t *testing.T) {
 	h := database.NewDatabaseHeader()
 	h.Version = 2
-	h.PageSize = 8192
 	h.TotalPages = 100
 	h.FreePageHead = 42
 	copy(h.Reserved[:], []byte("hello"))
@@ -52,8 +52,8 @@ func TestDatabaseHeader_Serialize(t *testing.T) {
 		t.Fatalf("Serialize() error = %v, want nil", err)
 	}
 
-	if len(buf) != database.DatabaseHeaderSize {
-		t.Fatalf("Serialize() len = %d, want %d", len(buf), database.DatabaseHeaderSize)
+	if len(buf) != storage.DatabaseHeaderSize {
+		t.Fatalf("Serialize() len = %d, want %d", len(buf), storage.DatabaseHeaderSize)
 	}
 
 	if !bytes.Equal(buf[database.MagicNumberOffset:database.MagicNumberOffset+database.MagicNumberSize], h.MagicNumber[:]) {
@@ -87,8 +87,8 @@ func TestNewDatabaseHeaderFromBytes(t *testing.T) {
 			name string
 			size int
 		}{
-			{"too short", database.DatabaseHeaderSize - 1},
-			{"too long", database.DatabaseHeaderSize + 1},
+			{"too short", storage.DatabaseHeaderSize - 1},
+			{"too long", storage.DatabaseHeaderSize + 1},
 			{"empty", 0},
 		}
 
@@ -109,7 +109,6 @@ func TestNewDatabaseHeaderFromBytes(t *testing.T) {
 	t.Run("valid data", func(t *testing.T) {
 		original := database.NewDatabaseHeader()
 		original.Version = 7
-		original.PageSize = 16384
 		original.TotalPages = 1234
 		original.FreePageHead = 99
 		copy(original.Reserved[:], []byte("reserved-data"))
@@ -183,7 +182,7 @@ func TestDatabaseHeader_Validate(t *testing.T) {
 
 	t.Run("invalid page size", func(t *testing.T) {
 		h := database.NewDatabaseHeader()
-		h.PageSize = database.PageSize + 1
+		h.PageSize = storage.PageSize + 1
 
 		err := h.Validate()
 		if !errors.Is(err, database.ErrInvalidPageSize) {
@@ -194,7 +193,7 @@ func TestDatabaseHeader_Validate(t *testing.T) {
 	t.Run("invalid magic number checked before page size", func(t *testing.T) {
 		h := database.NewDatabaseHeader()
 		h.MagicNumber = [4]byte{'X', 'X', 'X', 'X'}
-		h.PageSize = database.PageSize + 1
+		h.PageSize = storage.PageSize + 1
 
 		err := h.Validate()
 		if !errors.Is(err, database.ErrInvalidMagicNumber) {

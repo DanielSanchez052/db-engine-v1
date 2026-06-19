@@ -1,6 +1,7 @@
 package page
 
 import (
+	"db-engine-v1/internal/storage"
 	"encoding/binary"
 )
 
@@ -18,7 +19,7 @@ func NewPageHeader(id uint64, pageType PageType) *PageHeader {
 		PageID:          id,
 		PageType:        pageType,
 		RecordCount:     0,
-		FreeSpaceOffset: PageSize,
+		FreeSpaceOffset: storage.PageSize,
 		SlotCount:       0,
 		Reserved:        [49]byte{},
 	}
@@ -41,7 +42,7 @@ func (p *PageHeader) Serialize() ([]byte, error) {
 }
 
 func NewPageHeaderFromBytes(data []byte) (*PageHeader, error) {
-	expectedSize := PageHeaderSize
+	expectedSize := storage.PageHeaderSize
 	if len(data) != expectedSize {
 		return nil, ErrPageHeaderSizeMismatch
 	}
@@ -69,12 +70,12 @@ func (p *PageHeader) Validate() error {
 	}
 
 	// FreeSpaceOffset must not exceed page size
-	if p.FreeSpaceOffset > PageSize {
+	if p.FreeSpaceOffset > storage.PageSize {
 		return ErrInvalidFreeSpaceOffset
 	}
 
 	// FreeSpaceOffset must not point within the header
-	if p.FreeSpaceOffset < PageHeaderSize {
+	if p.FreeSpaceOffset < storage.PageHeaderSize {
 		return ErrFreeSpaceOffsetInHeader
 	}
 
