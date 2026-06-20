@@ -29,12 +29,12 @@ func (p *Pager) LoadPage(pageID uint64) (*page.Page, error) {
 		return nil, err
 	}
 
-	page, err := page.NewPageFromBytes(buffer)
+	loadedPage, err := page.NewPageFromBytes(buffer)
 	if err != nil {
 		return nil, err
 	}
 
-	return page, nil
+	return loadedPage, nil
 }
 
 func (p *Pager) SavePage(page *page.Page) error {

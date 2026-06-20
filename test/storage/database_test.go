@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"os"
 	"testing"
 
 	"db-engine-v1/internal/storage"
 	"db-engine-v1/internal/storage/database"
+	"db-engine-v1/internal/storage/page"
 )
 
 func TestNewDatabaseHeader(t *testing.T) {
@@ -200,4 +202,273 @@ func TestDatabaseHeader_Validate(t *testing.T) {
 			t.Errorf("Validate() error = %v, want %v", err, database.ErrInvalidMagicNumber)
 		}
 	})
+}
+
+func TestDatabase_Create(t *testing.T) {
+	dir := t.TempDir()
+	path := dir + "/test.db"
+
+	db, err := database.Create(path)
+	if err != nil {
+		t.Fatalf("Create() error = %v, want nil", err)
+	}
+	defer db.Close()
+
+	if db == nil {
+		t.Fatalf("Create() returned nil database")
+	}
+
+	if db.Header() == nil {
+		t.Fatalf("Create() returned database with nil Header")
+	}
+
+	if db.Header().MagicNumber != database.MagicNumber {
+		t.Errorf("MagicNumber = %v, want %v", db.Header().MagicNumber, database.MagicNumber)
+	}
+
+	if db.Header().Version != database.Version {
+		t.Errorf("Version = %d, want %d", db.Header().Version, database.Version)
+	}
+
+	if db.Header().PageSize != storage.PageSize {
+		t.Errorf("PageSize = %d, want %d", db.Header().PageSize, storage.PageSize)
+	}
+
+	if db.Header().TotalPages != 1 {
+		t.Errorf("TotalPages = %d, want %d", db.Header().TotalPages, 1)
+	}
+
+	// Verify file was created
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		t.Errorf("Database file was not created at %s", path)
+	}
+}
+
+func TestDatabase_Open(t *testing.T) {
+	dir := t.TempDir()
+	path := dir + "/test.db"
+
+	// First create a database
+	db, err := database.Create(path)
+	if err != nil {
+		t.Fatalf("Create() error = %v, want nil", err)
+	}
+	db.Close()
+
+	// Now open it
+	db, err = database.Open(path)
+	if err != nil {
+		t.Fatalf("Open() error = %v, want nil", err)
+	}
+	defer db.Close()
+
+	if db == nil {
+		t.Fatalf("Open() returned nil database")
+	}
+
+	if db.Header() == nil {
+		t.Fatalf("Open() returned database with nil Header")
+	}
+
+	if db.Header().MagicNumber != database.MagicNumber {
+		t.Errorf("MagicNumber = %v, want %v", db.Header().MagicNumber, database.MagicNumber)
+	}
+
+	if db.Header().Version != database.Version {
+		t.Errorf("Version = %d, want %d", db.Header().Version, database.Version)
+	}
+
+	if db.Header().PageSize != storage.PageSize {
+		t.Errorf("PageSize = %d, want %d", db.Header().PageSize, storage.PageSize)
+	}
+
+	if db.Header().TotalPages != 1 {
+		t.Errorf("TotalPages = %d, want %d", db.Header().TotalPages, 1)
+	}
+}
+
+func TestDatabase_Open_NotFound(t *testing.T) {
+	dir := t.TempDir()
+	path := dir + "/nonexistent.db"
+
+	_, err := database.Open(path)
+	if err == nil {
+		t.Errorf("Open() expected error for nonexistent file, got nil")
+	}
+}
+
+func TestDatabase_Open_InvalidHeader(t *testing.T) {
+	dir := t.TempDir()
+	path := dir + "/invalid.db"
+
+	// Create a file with invalid magic number (full page)
+	invalidData := make([]byte, storage.PageSize)
+	copy(invalidData, []byte("XXXX")) // Invalid magic number
+
+	err := os.WriteFile(path, invalidData, 0644)
+	if err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	_, err = database.Open(path)
+	if err == nil {
+		t.Errorf("Open() expected error for invalid header, got nil")
+	}
+	if !errors.Is(err, database.ErrInvalidMagicNumber) {
+		t.Errorf("Open() error = %v, want %v", err, database.ErrInvalidMagicNumber)
+	}
+}
+
+func TestDatabase_Close_SavesHeader(t *testing.T) {
+	dir := t.TempDir()
+	path := dir + "/test.db"
+
+	db, err := database.Create(path)
+	if err != nil {
+		t.Fatalf("Create() error = %v, want nil", err)
+	}
+
+	// Modify header
+	h := db.Header()
+	h.TotalPages = 42
+	h.FreePageHead = 7
+
+	err = db.Close()
+	if err != nil {
+		t.Fatalf("Close() error = %v, want nil", err)
+	}
+
+	// Reopen and verify changes persisted
+	db2, err := database.Open(path)
+	if err != nil {
+		t.Fatalf("Open() error = %v, want nil", err)
+	}
+	defer db2.Close()
+
+	if db2.Header().TotalPages != 42 {
+		t.Errorf("TotalPages after reopen = %d, want 42", db2.Header().TotalPages)
+	}
+
+	if db2.Header().FreePageHead != 7 {
+		t.Errorf("FreePageHead after reopen = %d, want 7", db2.Header().FreePageHead)
+	}
+}
+
+func TestAllocateFirstPage(t *testing.T) {
+	dir := t.TempDir()
+	path := dir + "/test.db"
+
+	db, err := database.Create(path)
+	if err != nil {
+		t.Fatalf("Create() error = %v, want nil", err)
+	}
+
+	// Page 0 is metadata, first allocation should be page 1
+	p, err := db.AllocatePage(page.DataPage)
+	if err != nil {
+		t.Fatalf("AllocatePage() error = %v, want nil", err)
+	}
+
+	if p.Header.PageID != 1 {
+		t.Errorf("Allocated page ID = %d, want 1 (page 0 is metadata)", p.Header.PageID)
+	}
+
+	if p.Header.PageType != page.DataPage {
+		t.Errorf("PageType = %v, want %v", p.Header.PageType, page.DataPage)
+	}
+
+	db.Close()
+
+	// Reopen and verify TotalPages persisted
+	db2, err := database.Open(path)
+	if err != nil {
+		t.Fatalf("Open() error = %v, want nil", err)
+	}
+	defer db2.Close()
+
+	if db2.Header().TotalPages != 2 {
+		t.Errorf("TotalPages after reopen = %d, want 2", db2.Header().TotalPages)
+	}
+}
+
+func TestAllocateMultiplePages(t *testing.T) {
+	dir := t.TempDir()
+	path := dir + "/test.db"
+
+	db, err := database.Create(path)
+	if err != nil {
+		t.Fatalf("Create() error = %v, want nil", err)
+	}
+
+	var pageIDs []uint64
+	for i := 0; i < 5; i++ {
+		p, err := db.AllocatePage(page.DataPage)
+		if err != nil {
+			t.Fatalf("AllocatePage(%d) error = %v, want nil", i, err)
+		}
+		pageIDs = append(pageIDs, p.Header.PageID)
+	}
+
+	// Verify sequential allocation starting from 1
+	for i, id := range pageIDs {
+		expected := uint64(i + 1)
+		if id != expected {
+			t.Errorf("Page %d ID = %d, want %d", i, id, expected)
+		}
+	}
+
+	db.Close()
+
+	// Reopen and verify all pages persisted
+	db2, err := database.Open(path)
+	if err != nil {
+		t.Fatalf("Open() error = %v, want nil", err)
+	}
+	defer db2.Close()
+
+	if db2.Header().TotalPages != 6 { // 1 metadata + 5 data pages
+		t.Errorf("TotalPages after reopen = %d, want 6", db2.Header().TotalPages)
+	}
+
+	// Verify each page can be loaded
+	for _, id := range pageIDs {
+		loadedPage, err := db2.Pager().LoadPage(id)
+		if err != nil {
+			t.Fatalf("LoadPage(%d) error = %v, want nil", id, err)
+		}
+		if loadedPage.Header.PageID != id {
+			t.Errorf("Loaded page ID = %d, want %d", loadedPage.Header.PageID, id)
+		}
+		if loadedPage.Header.PageType != page.DataPage {
+			t.Errorf("Loaded page type = %v, want %v", loadedPage.Header.PageType, page.DataPage)
+		}
+	}
+}
+
+func TestAllocateDifferentPageTypes(t *testing.T) {
+	dir := t.TempDir()
+	path := dir + "/test.db"
+
+	db, err := database.Create(path)
+	if err != nil {
+		t.Fatalf("Create() error = %v, want nil", err)
+	}
+
+	dataPage, err := db.AllocatePage(page.DataPage)
+	if err != nil {
+		t.Fatalf("AllocatePage(DataPage) error = %v", err)
+	}
+	if dataPage.Header.PageType != page.DataPage {
+		t.Errorf("DataPage type = %v, want %v", dataPage.Header.PageType, page.DataPage)
+	}
+
+	indexPage, err := db.AllocatePage(page.IndexPage)
+	if err != nil {
+		t.Fatalf("AllocatePage(IndexPage) error = %v", err)
+	}
+	if indexPage.Header.PageType != page.IndexPage {
+		t.Errorf("IndexPage type = %v, want %v", indexPage.Header.PageType, page.IndexPage)
+	}
+
+	db.Close()
 }

@@ -6,6 +6,17 @@ type FileManager struct {
 	file *os.File
 }
 
+func FileExists(path string) (bool, error) {
+	_, err := os.Stat(path)
+	if err == nil {
+		return true, nil
+	}
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	return false, err
+}
+
 func (fm *FileManager) ReadAt(offset int64, buffer []byte) error {
 	n, err := fm.file.ReadAt(buffer, offset)
 
@@ -54,4 +65,8 @@ func Open(path string) (*FileManager, error) {
 
 func (fm *FileManager) Close() error {
 	return fm.file.Close()
+}
+
+func (fm *FileManager) Truncate(size int64) error {
+	return fm.file.Truncate(size)
 }

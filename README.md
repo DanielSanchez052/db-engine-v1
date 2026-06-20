@@ -38,15 +38,21 @@ El objetivo del proyecto es comprender e implementar los componentes fundamental
 - [x] Serialización binaria
 - [x] Deserialización binaria
 - [x] Tests unitarios
+- [x] Slot
+- [x] Pager
+- [x] Slotted Pages
+- [x] HeapFile
+- [x] Database
 
 ### Pendiente
 
-- [ ] Slot
-- [ ] Pager
-- [ ] Slotted Pages
 - [ ] Catalog
 - [ ] Executor
 - [ ] Parser SQL
+
+### Future Work:
+- [ ] Free Space Map
+- [ ] Page Directory
 
 ---
 
