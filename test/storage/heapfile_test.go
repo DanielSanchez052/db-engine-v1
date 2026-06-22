@@ -61,7 +61,7 @@ func TestHeapFileInsertRecord(t *testing.T) {
 
 	rec := record.Record([]byte("hello"))
 
-	rid, err := hf.InsertRecord(rec)
+	rid, isNew, err := hf.InsertRecord(rec)
 	if err != nil {
 		t.Fatalf("InsertRecord() error = %v, want nil", err)
 	}
@@ -77,6 +77,10 @@ func TestHeapFileInsertRecord(t *testing.T) {
 	if rid.SlotID != 0 {
 		t.Errorf("SlotID = %d, want 0", rid.SlotID)
 	}
+
+	if !isNew {
+		t.Errorf("isNew = false, want true (first insert should allocate new page)")
+	}
 }
 
 func TestHeapFileInsertAndGetRecord(t *testing.T) {
@@ -85,7 +89,7 @@ func TestHeapFileInsertAndGetRecord(t *testing.T) {
 
 	rec := record.Record([]byte("hello world"))
 
-	rid, err := hf.InsertRecord(rec)
+	rid, _, err := hf.InsertRecord(rec)
 	if err != nil {
 		t.Fatalf("InsertRecord() error = %v", err)
 	}
@@ -112,7 +116,7 @@ func TestHeapFileInsertMultipleRecords(t *testing.T) {
 
 	var rids []*heapfile.RecordID
 	for _, rec := range records {
-		rid, err := hf.InsertRecord(rec)
+		rid, _, err := hf.InsertRecord(rec)
 		if err != nil {
 			t.Fatalf("InsertRecord(%q) error = %v", string(rec), err)
 		}
@@ -130,26 +134,56 @@ func TestHeapFileInsertMultipleRecords(t *testing.T) {
 	}
 }
 
-func TestHeapFileInsertFillsPage(t *testing.T) {
-	hf, _, metadata, cleanup := setupHeapFile(t)
+func TestHeapFileInsertIsNew(t *testing.T) {
+	hf, _, _, cleanup := setupHeapFile(t)
 	defer cleanup()
 
-	// Insert large records to force allocation of subsequent pages
+	// First insert always creates a new page
+	rid, isNew, err := hf.InsertRecord(record.Record([]byte("first")))
+	if err != nil {
+		t.Fatalf("InsertRecord() error = %v", err)
+	}
+	if !isNew {
+		t.Errorf("isNew = false, want true (first insert)")
+	}
+	if rid.PageID != 1 {
+		t.Errorf("PageID = %d, want 1", rid.PageID)
+	}
+
+	// Second insert fits in same page, so isNew = false
+	rid2, isNew, err := hf.InsertRecord(record.Record([]byte("second")))
+	if err != nil {
+		t.Fatalf("InsertRecord() error = %v", err)
+	}
+	if isNew {
+		t.Errorf("isNew = true, want false (should fit in existing page)")
+	}
+	if rid2.PageID != 1 {
+		t.Errorf("PageID = %d, want 1 (same page)", rid2.PageID)
+	}
+}
+
+func TestHeapFileInsertLargeRecordCreatesNewPage(t *testing.T) {
+	hf, _, _, cleanup := setupHeapFile(t)
+	defer cleanup()
+
+	// First large record fills the page
 	largeData := make([]byte, 3000)
-	for i := range largeData {
-		largeData[i] = byte(i % 256)
+	_, isNew, err := hf.InsertRecord(record.Record(largeData))
+	if err != nil {
+		t.Fatalf("InsertRecord() error = %v", err)
+	}
+	if !isNew {
+		t.Errorf("isNew = false, want true (first record needs new page)")
 	}
 
-	for i := 0; i < 5; i++ {
-		rec := record.Record(largeData)
-		_, err := hf.InsertRecord(rec)
-		if err != nil {
-			t.Fatalf("InsertRecord(%d) error = %v", i, err)
-		}
+	// Second large record needs a new page since first doesn't fit
+	_, isNew, err = hf.InsertRecord(record.Record(largeData))
+	if err != nil {
+		t.Fatalf("InsertRecord() error = %v", err)
 	}
-
-	if len(metadata.PageIDs) < 2 {
-		t.Errorf("len(PageIDs) = %d, want multiple pages (3000*5 bytes needs >1 page)", len(metadata.PageIDs))
+	if !isNew {
+		t.Errorf("isNew = false, want true (large record needs new page)")
 	}
 }
 
@@ -180,7 +214,7 @@ func TestHeapFileGetRecordInvalidSlot(t *testing.T) {
 	defer cleanup()
 
 	rec := record.Record([]byte("data"))
-	rid, err := hf.InsertRecord(rec)
+	rid, _, err := hf.InsertRecord(rec)
 	if err != nil {
 		t.Fatalf("InsertRecord() error = %v", err)
 	}
@@ -197,13 +231,13 @@ func TestHeapFileInsertAfterGetRecord(t *testing.T) {
 	defer cleanup()
 
 	rec1 := record.Record([]byte("record1"))
-	rid1, err := hf.InsertRecord(rec1)
+	rid1, _, err := hf.InsertRecord(rec1)
 	if err != nil {
 		t.Fatalf("InsertRecord() error = %v", err)
 	}
 
 	rec2 := record.Record([]byte("record2"))
-	rid2, err := hf.InsertRecord(rec2)
+	rid2, _, err := hf.InsertRecord(rec2)
 	if err != nil {
 		t.Fatalf("InsertRecord() error = %v", err)
 	}
@@ -231,7 +265,7 @@ func TestHeapFileInsertLargeRecord(t *testing.T) {
 
 	rec := record.Record(largeData)
 
-	rid, err := hf.InsertRecord(rec)
+	rid, _, err := hf.InsertRecord(rec)
 	if err != nil {
 		t.Fatalf("InsertRecord() error = %v", err)
 	}
@@ -259,7 +293,7 @@ func TestHeapFileMultiplePagesInsertAndGet(t *testing.T) {
 
 	for i := 0; i < 10; i++ {
 		rec := record.Record([]byte("test data for insert"))
-		_, err := hf.InsertRecord(rec)
+		_, _, err := hf.InsertRecord(rec)
 		if err != nil {
 			t.Fatalf("InsertRecord(%d) error = %v", i, err)
 		}
@@ -283,8 +317,54 @@ func TestHeapFileInsertZeroLengthRecord(t *testing.T) {
 	defer cleanup()
 
 	rec := record.Record{}
-	_, err := hf.InsertRecord(rec)
+	_, _, err := hf.InsertRecord(rec)
 	if err == nil {
 		t.Errorf("InsertRecord() expected error for zero-length record, got nil")
+	}
+}
+
+func TestHeapFileIsNewFlagMixed(t *testing.T) {
+	hf, _, metadata, cleanup := setupHeapFile(t)
+	defer cleanup()
+
+	// Create large records that fill pages
+	largeData := make([]byte, 3000)
+	for i := 0; i < 3; i++ {
+		_, isNew, err := hf.InsertRecord(record.Record(largeData))
+		if err != nil {
+			t.Fatalf("InsertRecord(%d) error = %v", i, err)
+		}
+		if !isNew {
+			t.Errorf("isNew = false for large record %d, want true", i)
+		}
+	}
+
+	if len(metadata.PageIDs) != 3 {
+		t.Errorf("len(PageIDs) = %d, want 3", len(metadata.PageIDs))
+	}
+}
+
+func TestHeapFileIsNewFlagFirstIsNewRestExisting(t *testing.T) {
+	hf, _, _, cleanup := setupHeapFile(t)
+	defer cleanup()
+
+	// First insert: must be new
+	_, isNew, err := hf.InsertRecord(record.Record([]byte("a")))
+	if err != nil {
+		t.Fatalf("InsertRecord() error = %v", err)
+	}
+	if !isNew {
+		t.Errorf("isNew = false on first insert, want true")
+	}
+
+	// Subsequent small inserts: should reuse existing page
+	for i := 1; i < 10; i++ {
+		_, isNew, err := hf.InsertRecord(record.Record([]byte("b")))
+		if err != nil {
+			t.Fatalf("InsertRecord(%d) error = %v", i, err)
+		}
+		if isNew {
+			t.Errorf("isNew = true on insert %d, want false (should reuse page)", i)
+		}
 	}
 }

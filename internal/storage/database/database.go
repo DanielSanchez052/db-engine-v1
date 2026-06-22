@@ -198,8 +198,8 @@ func (db *Database) Insert(tableName string, record record.Record) (*heapfile.Re
 		return nil, ErrInvalidTableName
 	}
 
-	if _, exists := db.catalog.GetTable(tableName); exists {
-		return nil, ErrTableAlreadyExists
+	if _, exists := db.catalog.GetTable(tableName); !exists {
+		return nil, ErrTableNotFound
 	}
 
 	heap, err := db.OpenHeapFile(tableName)
@@ -207,7 +207,18 @@ func (db *Database) Insert(tableName string, record record.Record) (*heapfile.Re
 		return nil, err
 	}
 
-	return heap.InsertRecord(record)
+	rid, metadataChanged, err := heap.InsertRecord(record)
+	if err != nil {
+		return nil, err
+	}
+
+	if metadataChanged {
+		if err := db.catalog.Flush(); err != nil {
+			return nil, err
+		}
+	}
+
+	return rid, nil
 }
 
 func (db *Database) GetRecord(tableName string, rid *heapfile.RecordID) (record.Record, error) {

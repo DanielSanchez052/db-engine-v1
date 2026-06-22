@@ -7,35 +7,35 @@ import (
 )
 
 func TestDataTypeValues(t *testing.T) {
-	if catalog.TypeInt != 0 {
-		t.Errorf("TypeInt = %d, want 0", catalog.TypeInt)
+	if catalog.TypeInt32Type != 0 {
+		t.Errorf("TypeInt32Type = %d, want 0", catalog.TypeInt32Type)
 	}
 
-	if catalog.TypeString != 1 {
-		t.Errorf("TypeString = %d, want 1", catalog.TypeString)
+	if catalog.TypeStringType != 1 {
+		t.Errorf("TypeStringType = %d, want 1", catalog.TypeStringType)
 	}
 
-	if catalog.TypeBool != 2 {
-		t.Errorf("TypeBool = %d, want 2", catalog.TypeBool)
+	if catalog.TypeBoolType != 2 {
+		t.Errorf("TypeBoolType = %d, want 2", catalog.TypeBoolType)
 	}
 }
 
 func TestDataTypeIsValid(t *testing.T) {
-	t.Run("TypeInt", func(t *testing.T) {
-		if !catalog.TypeInt.IsValid() {
-			t.Errorf("TypeInt.IsValid() = false, want true")
+	t.Run("TypeInt32Type", func(t *testing.T) {
+		if !catalog.TypeInt32Type.IsValid() {
+			t.Errorf("TypeInt32Type.IsValid() = false, want true")
 		}
 	})
 
-	t.Run("TypeString", func(t *testing.T) {
-		if !catalog.TypeString.IsValid() {
-			t.Errorf("TypeString.IsValid() = false, want true")
+	t.Run("TypeStringType", func(t *testing.T) {
+		if !catalog.TypeStringType.IsValid() {
+			t.Errorf("TypeStringType.IsValid() = false, want true")
 		}
 	})
 
-	t.Run("TypeBool", func(t *testing.T) {
-		if !catalog.TypeBool.IsValid() {
-			t.Errorf("TypeBool.IsValid() = false, want true")
+	t.Run("TypeBoolType", func(t *testing.T) {
+		if !catalog.TypeBoolType.IsValid() {
+			t.Errorf("TypeBoolType.IsValid() = false, want true")
 		}
 	})
 }

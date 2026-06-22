@@ -7,9 +7,12 @@ import (
 	"os"
 	"testing"
 
+	"db-engine-v1/internal/catalog"
 	"db-engine-v1/internal/storage"
 	"db-engine-v1/internal/storage/database"
+	"db-engine-v1/internal/storage/heapfile"
 	"db-engine-v1/internal/storage/page"
+	"db-engine-v1/internal/storage/record"
 )
 
 func TestNewDatabaseHeader(t *testing.T) {
@@ -471,4 +474,454 @@ func TestAllocateDifferentPageTypes(t *testing.T) {
 	}
 
 	db.Close()
+}
+
+func TestCreateTable(t *testing.T) {
+	dir := t.TempDir()
+	path := dir + "/test.db"
+
+	db, err := database.Create(path)
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	defer db.Close()
+
+	columns := []catalog.Column{
+		{Name: "id", Type: catalog.TypeInt32Type},
+		{Name: "name", Type: catalog.TypeStringType},
+	}
+
+	err = db.CreateTable("users", columns)
+	if err != nil {
+		t.Fatalf("CreateTable() error = %v, want nil", err)
+	}
+
+	// Verify by opening the heap file and inserting/reading a record
+	hf, err := db.OpenHeapFile("users")
+	if err != nil {
+		t.Fatalf("OpenHeapFile() error = %v, want nil", err)
+	}
+
+	rec := record.Record([]byte("test data"))
+	rid, _, err := hf.InsertRecord(rec)
+	if err != nil {
+		t.Fatalf("InsertRecord() error = %v, want nil", err)
+	}
+
+	got, err := hf.GetRecord(rid)
+	if err != nil {
+		t.Fatalf("GetRecord() error = %v, want nil", err)
+	}
+	if string(got) != "test data" {
+		t.Errorf("GetRecord() = %q, want %q", string(got), "test data")
+	}
+}
+
+func TestCreateTableEmptyName(t *testing.T) {
+	dir := t.TempDir()
+	path := dir + "/test.db"
+
+	db, err := database.Create(path)
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	defer db.Close()
+
+	err = db.CreateTable("", []catalog.Column{{Name: "id", Type: catalog.TypeInt32Type}})
+	if !errors.Is(err, database.ErrInvalidTableName) {
+		t.Errorf("CreateTable() error = %v, want %v", err, database.ErrInvalidTableName)
+	}
+}
+
+func TestCreateTableEmptyColumns(t *testing.T) {
+	dir := t.TempDir()
+	path := dir + "/test.db"
+
+	db, err := database.Create(path)
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	defer db.Close()
+
+	err = db.CreateTable("users", []catalog.Column{})
+	if !errors.Is(err, database.ErrInvalidColumns) {
+		t.Errorf("CreateTable() error = %v, want %v", err, database.ErrInvalidColumns)
+	}
+}
+
+func TestCreateTablePersistsAfterReopen(t *testing.T) {
+	dir := t.TempDir()
+	path := dir + "/test.db"
+
+	db, err := database.Create(path)
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+
+	columns := []catalog.Column{
+		{Name: "id", Type: catalog.TypeInt32Type},
+	}
+	err = db.CreateTable("users", columns)
+	if err != nil {
+		t.Fatalf("CreateTable() error = %v", err)
+	}
+
+	rec := record.Record([]byte("persistent"))
+	rid, err := db.Insert("users", rec)
+	if err != nil {
+		t.Fatalf("Insert() error = %v", err)
+	}
+	db.Close()
+
+	db2, err := database.Open(path)
+	if err != nil {
+		t.Fatalf("Open() error = %v", err)
+	}
+	defer db2.Close()
+
+	got, err := db2.GetRecord("users", rid)
+	if err != nil {
+		t.Fatalf("GetRecord() after reopen error = %v", err)
+	}
+	if string(got) != "persistent" {
+		t.Errorf("GetRecord() after reopen = %q, want %q", string(got), "persistent")
+	}
+}
+
+func TestOpenHeapFile(t *testing.T) {
+	dir := t.TempDir()
+	path := dir + "/test.db"
+
+	db, err := database.Create(path)
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	defer db.Close()
+
+	columns := []catalog.Column{{Name: "id", Type: catalog.TypeInt32Type}}
+	err = db.CreateTable("users", columns)
+	if err != nil {
+		t.Fatalf("CreateTable() error = %v", err)
+	}
+
+	hf, err := db.OpenHeapFile("users")
+	if err != nil {
+		t.Fatalf("OpenHeapFile() error = %v, want nil", err)
+	}
+
+	if hf == nil {
+		t.Fatalf("OpenHeapFile() returned nil")
+	}
+}
+
+func TestOpenHeapFileTableNotFound(t *testing.T) {
+	dir := t.TempDir()
+	path := dir + "/test.db"
+
+	db, err := database.Create(path)
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	defer db.Close()
+
+	_, err = db.OpenHeapFile("nonexistent")
+	if !errors.Is(err, database.ErrTableNotFound) {
+		t.Errorf("OpenHeapFile() error = %v, want %v", err, database.ErrTableNotFound)
+	}
+}
+
+func TestOpenHeapFileEmptyName(t *testing.T) {
+	dir := t.TempDir()
+	path := dir + "/test.db"
+
+	db, err := database.Create(path)
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	defer db.Close()
+
+	_, err = db.OpenHeapFile("")
+	if !errors.Is(err, database.ErrInvalidTableName) {
+		t.Errorf("OpenHeapFile() error = %v, want %v", err, database.ErrInvalidTableName)
+	}
+}
+
+func TestDatabaseInsert(t *testing.T) {
+	dir := t.TempDir()
+	path := dir + "/test.db"
+
+	db, err := database.Create(path)
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	defer db.Close()
+
+	columns := []catalog.Column{{Name: "id", Type: catalog.TypeInt32Type}}
+	err = db.CreateTable("users", columns)
+	if err != nil {
+		t.Fatalf("CreateTable() error = %v", err)
+	}
+
+	rec := record.Record([]byte("hello"))
+	rid, err := db.Insert("users", rec)
+	if err != nil {
+		t.Fatalf("Insert() error = %v, want nil", err)
+	}
+
+	if rid == nil {
+		t.Fatalf("Insert() returned nil RecordID")
+	}
+
+	if rid.PageID != 1 {
+		t.Errorf("PageID = %d, want 1", rid.PageID)
+	}
+
+	if rid.SlotID != 0 {
+		t.Errorf("SlotID = %d, want 0", rid.SlotID)
+	}
+}
+
+func TestDatabaseInsertAndGetRecord(t *testing.T) {
+	dir := t.TempDir()
+	path := dir + "/test.db"
+
+	db, err := database.Create(path)
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	defer db.Close()
+
+	columns := []catalog.Column{{Name: "name", Type: catalog.TypeStringType}}
+	err = db.CreateTable("users", columns)
+	if err != nil {
+		t.Fatalf("CreateTable() error = %v", err)
+	}
+
+	rec := record.Record([]byte("Alice"))
+	rid, err := db.Insert("users", rec)
+	if err != nil {
+		t.Fatalf("Insert() error = %v", err)
+	}
+
+	got, err := db.GetRecord("users", rid)
+	if err != nil {
+		t.Fatalf("GetRecord() error = %v, want nil", err)
+	}
+
+	if string(got) != "Alice" {
+		t.Errorf("GetRecord() = %q, want %q", string(got), "Alice")
+	}
+}
+
+func TestDatabaseInsertMultipleRecords(t *testing.T) {
+	dir := t.TempDir()
+	path := dir + "/test.db"
+
+	db, err := database.Create(path)
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	defer db.Close()
+
+	columns := []catalog.Column{{Name: "name", Type: catalog.TypeStringType}}
+	err = db.CreateTable("users", columns)
+	if err != nil {
+		t.Fatalf("CreateTable() error = %v", err)
+	}
+
+	records := []record.Record{
+		record.Record([]byte("Alice")),
+		record.Record([]byte("Bob")),
+		record.Record([]byte("Charlie")),
+	}
+
+	var rids []*heapfile.RecordID
+	for _, rec := range records {
+		rid, err := db.Insert("users", rec)
+		if err != nil {
+			t.Fatalf("Insert(%q) error = %v", string(rec), err)
+		}
+		rids = append(rids, rid)
+	}
+
+	for i, rid := range rids {
+		got, err := db.GetRecord("users", rid)
+		if err != nil {
+			t.Fatalf("GetRecord(%d) error = %v", i, err)
+		}
+		if string(got) != string(records[i]) {
+			t.Errorf("GetRecord(%d) = %q, want %q", i, string(got), string(records[i]))
+		}
+	}
+}
+
+func TestDatabaseInsertPersistsAfterReopen(t *testing.T) {
+	dir := t.TempDir()
+	path := dir + "/test.db"
+
+	db, err := database.Create(path)
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+
+	columns := []catalog.Column{{Name: "name", Type: catalog.TypeStringType}}
+	err = db.CreateTable("users", columns)
+	if err != nil {
+		t.Fatalf("CreateTable() error = %v", err)
+	}
+
+	rec := record.Record([]byte("Persistent data"))
+	rid, err := db.Insert("users", rec)
+	if err != nil {
+		t.Fatalf("Insert() error = %v", err)
+	}
+	db.Close()
+
+	db2, err := database.Open(path)
+	if err != nil {
+		t.Fatalf("Open() error = %v", err)
+	}
+	defer db2.Close()
+
+	got, err := db2.GetRecord("users", rid)
+	if err != nil {
+		t.Fatalf("GetRecord() after reopen error = %v", err)
+	}
+	if string(got) != "Persistent data" {
+		t.Errorf("GetRecord() after reopen = %q, want %q", string(got), "Persistent data")
+	}
+}
+
+func TestDatabaseInsertTableNotFound(t *testing.T) {
+	dir := t.TempDir()
+	path := dir + "/test.db"
+
+	db, err := database.Create(path)
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	defer db.Close()
+
+	_, err = db.Insert("nonexistent", record.Record([]byte("data")))
+	if !errors.Is(err, database.ErrTableNotFound) {
+		t.Errorf("Insert() error = %v, want %v", err, database.ErrTableNotFound)
+	}
+}
+
+func TestDatabaseInsertEmptyTableName(t *testing.T) {
+	dir := t.TempDir()
+	path := dir + "/test.db"
+
+	db, err := database.Create(path)
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	defer db.Close()
+
+	_, err = db.Insert("", record.Record([]byte("data")))
+	if !errors.Is(err, database.ErrInvalidTableName) {
+		t.Errorf("Insert() error = %v, want %v", err, database.ErrInvalidTableName)
+	}
+}
+
+func TestDatabaseGetRecordTableNotFound(t *testing.T) {
+	dir := t.TempDir()
+	path := dir + "/test.db"
+
+	db, err := database.Create(path)
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	defer db.Close()
+
+	rid := &heapfile.RecordID{PageID: 1, SlotID: 0}
+	_, err = db.GetRecord("nonexistent", rid)
+	if !errors.Is(err, database.ErrTableNotFound) {
+		t.Errorf("GetRecord() error = %v, want %v", err, database.ErrTableNotFound)
+	}
+}
+
+func TestDatabaseGetRecordEmptyTableName(t *testing.T) {
+	dir := t.TempDir()
+	path := dir + "/test.db"
+
+	db, err := database.Create(path)
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	defer db.Close()
+
+	_, err = db.GetRecord("", &heapfile.RecordID{PageID: 1, SlotID: 0})
+	if !errors.Is(err, database.ErrInvalidTableName) {
+		t.Errorf("GetRecord() error = %v, want %v", err, database.ErrInvalidTableName)
+	}
+}
+
+func TestDatabaseGetRecordNilRID(t *testing.T) {
+	dir := t.TempDir()
+	path := dir + "/test.db"
+
+	db, err := database.Create(path)
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	defer db.Close()
+
+	columns := []catalog.Column{{Name: "name", Type: catalog.TypeStringType}}
+	err = db.CreateTable("users", columns)
+	if err != nil {
+		t.Fatalf("CreateTable() error = %v", err)
+	}
+
+	_, err = db.GetRecord("users", nil)
+	if !errors.Is(err, database.ErrInvalidRecordID) {
+		t.Errorf("GetRecord() error = %v, want %v", err, database.ErrInvalidRecordID)
+	}
+}
+
+func TestDatabaseInsertAndGetDifferentTables(t *testing.T) {
+	dir := t.TempDir()
+	path := dir + "/test.db"
+
+	db, err := database.Create(path)
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	defer db.Close()
+
+	err = db.CreateTable("users", []catalog.Column{{Name: "name", Type: catalog.TypeStringType}})
+	if err != nil {
+		t.Fatalf("CreateTable('users') error = %v", err)
+	}
+
+	err = db.CreateTable("products", []catalog.Column{{Name: "title", Type: catalog.TypeStringType}})
+	if err != nil {
+		t.Fatalf("CreateTable('products') error = %v", err)
+	}
+
+	rid1, err := db.Insert("users", record.Record([]byte("Alice")))
+	if err != nil {
+		t.Fatalf("Insert('users') error = %v", err)
+	}
+
+	rid2, err := db.Insert("products", record.Record([]byte("Widget")))
+	if err != nil {
+		t.Fatalf("Insert('products') error = %v", err)
+	}
+
+	got1, err := db.GetRecord("users", rid1)
+	if err != nil {
+		t.Fatalf("GetRecord('users') error = %v", err)
+	}
+	if string(got1) != "Alice" {
+		t.Errorf("GetRecord('users') = %q, want %q", string(got1), "Alice")
+	}
+
+	got2, err := db.GetRecord("products", rid2)
+	if err != nil {
+		t.Fatalf("GetRecord('products') error = %v", err)
+	}
+	if string(got2) != "Widget" {
+		t.Errorf("GetRecord('products') = %q, want %q", string(got2), "Widget")
+	}
 }

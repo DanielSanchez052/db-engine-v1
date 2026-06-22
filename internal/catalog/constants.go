@@ -9,6 +9,8 @@ const (
 	Uint32Size = 4
 	Uint64Size = 8
 
+	BoolSize = 1
+
 	DataTypeSize = 1
 
 	HeapNameLengthSize = 2

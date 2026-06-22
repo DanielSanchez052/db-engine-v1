@@ -9,21 +9,21 @@ import (
 func TestColumnNew(t *testing.T) {
 	c := catalog.Column{
 		Name: "age",
-		Type: catalog.TypeInt,
+		Type: catalog.TypeInt32Type,
 	}
 
 	if c.Name != "age" {
 		t.Errorf("Name = %q, want %q", c.Name, "age")
 	}
 
-	if c.Type != catalog.TypeInt {
-		t.Errorf("Type = %v, want %v", c.Type, catalog.TypeInt)
+	if c.Type != catalog.TypeInt32Type {
+		t.Errorf("Type = %v, want %v", c.Type, catalog.TypeInt32Type)
 	}
 }
 
 func TestColumnSize(t *testing.T) {
 	t.Run("short name", func(t *testing.T) {
-		c := catalog.Column{Name: "id", Type: catalog.TypeInt}
+		c := catalog.Column{Name: "id", Type: catalog.TypeInt32Type}
 		expected := 2 + 2 + 1
 		if c.Size() != expected {
 			t.Errorf("Size() = %d, want %d", c.Size(), expected)
@@ -31,7 +31,7 @@ func TestColumnSize(t *testing.T) {
 	})
 
 	t.Run("long name", func(t *testing.T) {
-		c := catalog.Column{Name: "full_name", Type: catalog.TypeString}
+		c := catalog.Column{Name: "full_name", Type: catalog.TypeStringType}
 		expected := 2 + 9 + 1
 		if c.Size() != expected {
 			t.Errorf("Size() = %d, want %d", c.Size(), expected)
@@ -40,7 +40,7 @@ func TestColumnSize(t *testing.T) {
 }
 
 func TestColumnSerialize(t *testing.T) {
-	c := catalog.Column{Name: "age", Type: catalog.TypeInt}
+	c := catalog.Column{Name: "age", Type: catalog.TypeInt32Type}
 
 	data, err := c.Serialize()
 	if err != nil {
@@ -53,7 +53,7 @@ func TestColumnSerialize(t *testing.T) {
 }
 
 func TestNewColumnFromBytes(t *testing.T) {
-	original := catalog.Column{Name: "name", Type: catalog.TypeString}
+	original := catalog.Column{Name: "name", Type: catalog.TypeStringType}
 
 	data, err := original.Serialize()
 	if err != nil {
@@ -75,38 +75,38 @@ func TestNewColumnFromBytes(t *testing.T) {
 }
 
 func TestColumnRoundTrip(t *testing.T) {
-	t.Run("TypeInt", func(t *testing.T) {
-		original := catalog.Column{Name: "id", Type: catalog.TypeInt}
+	t.Run("TypeInt32Type", func(t *testing.T) {
+		original := catalog.Column{Name: "id", Type: catalog.TypeInt32Type}
 		data, _ := original.Serialize()
 		got, err := catalog.NewColumnFromBytes(data)
 		if err != nil {
 			t.Fatalf("NewColumnFromBytes() error = %v", err)
 		}
-		if got.Name != "id" || got.Type != catalog.TypeInt {
+		if got.Name != "id" || got.Type != catalog.TypeInt32Type {
 			t.Errorf("Round trip failed: got %+v", got)
 		}
 	})
 
-	t.Run("TypeString", func(t *testing.T) {
-		original := catalog.Column{Name: "username", Type: catalog.TypeString}
+	t.Run("TypeStringType", func(t *testing.T) {
+		original := catalog.Column{Name: "username", Type: catalog.TypeStringType}
 		data, _ := original.Serialize()
 		got, err := catalog.NewColumnFromBytes(data)
 		if err != nil {
 			t.Fatalf("NewColumnFromBytes() error = %v", err)
 		}
-		if got.Name != "username" || got.Type != catalog.TypeString {
+		if got.Name != "username" || got.Type != catalog.TypeStringType {
 			t.Errorf("Round trip failed: got %+v", got)
 		}
 	})
 
-	t.Run("TypeBool", func(t *testing.T) {
-		original := catalog.Column{Name: "is_active", Type: catalog.TypeBool}
+	t.Run("TypeBoolType", func(t *testing.T) {
+		original := catalog.Column{Name: "is_active", Type: catalog.TypeBoolType}
 		data, _ := original.Serialize()
 		got, err := catalog.NewColumnFromBytes(data)
 		if err != nil {
 			t.Fatalf("NewColumnFromBytes() error = %v", err)
 		}
-		if got.Name != "is_active" || got.Type != catalog.TypeBool {
+		if got.Name != "is_active" || got.Type != catalog.TypeBoolType {
 			t.Errorf("Round trip failed: got %+v", got)
 		}
 	})
@@ -122,7 +122,7 @@ func TestColumnSerializeInvalidType(t *testing.T) {
 }
 
 func TestColumnSerializeEmptyName(t *testing.T) {
-	c := catalog.Column{Name: "", Type: catalog.TypeString}
+	c := catalog.Column{Name: "", Type: catalog.TypeStringType}
 
 	data, err := c.Serialize()
 	if err != nil {
@@ -145,7 +145,7 @@ func TestColumnSerializeNameMaxLength(t *testing.T) {
 		longName += "a"
 	}
 
-	c := catalog.Column{Name: longName, Type: catalog.TypeInt}
+	c := catalog.Column{Name: longName, Type: catalog.TypeInt32Type}
 
 	data, err := c.Serialize()
 	if err != nil {

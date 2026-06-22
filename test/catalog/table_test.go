@@ -11,8 +11,8 @@ func TestTableNew(t *testing.T) {
 		Name:     "users",
 		HeapName: "users_heap",
 		Columns: []catalog.Column{
-			{Name: "id", Type: catalog.TypeInt},
-			{Name: "name", Type: catalog.TypeString},
+			{Name: "id", Type: catalog.TypeInt32Type},
+			{Name: "name", Type: catalog.TypeStringType},
 		},
 	}
 
@@ -43,8 +43,8 @@ func TestTableSize(t *testing.T) {
 			Name:     "users",
 			HeapName: "users_heap",
 			Columns: []catalog.Column{
-				{Name: "id", Type: catalog.TypeInt},
-				{Name: "name", Type: catalog.TypeString},
+				{Name: "id", Type: catalog.TypeInt32Type},
+				{Name: "name", Type: catalog.TypeStringType},
 			},
 		}
 		// name "users" = 2+5, heap "users_heap" = 2+10, colCount = 2
@@ -62,7 +62,7 @@ func TestTableSerialize(t *testing.T) {
 		Name:     "users",
 		HeapName: "users_heap",
 		Columns: []catalog.Column{
-			{Name: "id", Type: catalog.TypeInt},
+			{Name: "id", Type: catalog.TypeInt32Type},
 		},
 	}
 
@@ -81,9 +81,9 @@ func TestNewTableFromBytes(t *testing.T) {
 		Name:     "products",
 		HeapName: "products_heap",
 		Columns: []catalog.Column{
-			{Name: "id", Type: catalog.TypeInt},
-			{Name: "name", Type: catalog.TypeString},
-			{Name: "price", Type: catalog.TypeInt},
+			{Name: "id", Type: catalog.TypeInt32Type},
+			{Name: "name", Type: catalog.TypeStringType},
+			{Name: "price", Type: catalog.TypeInt32Type},
 		},
 	}
 
@@ -124,10 +124,10 @@ func TestTableRoundTrip(t *testing.T) {
 		Name:     "orders",
 		HeapName: "orders_heap",
 		Columns: []catalog.Column{
-			{Name: "id", Type: catalog.TypeInt},
-			{Name: "total", Type: catalog.TypeInt},
-			{Name: "description", Type: catalog.TypeString},
-			{Name: "is_shipped", Type: catalog.TypeBool},
+			{Name: "id", Type: catalog.TypeInt32Type},
+			{Name: "total", Type: catalog.TypeInt32Type},
+			{Name: "description", Type: catalog.TypeStringType},
+			{Name: "is_shipped", Type: catalog.TypeBoolType},
 		},
 	}
 
@@ -168,7 +168,7 @@ func TestTableSerializeEmptyNames(t *testing.T) {
 		Name:     "",
 		HeapName: "",
 		Columns: []catalog.Column{
-			{Name: "col", Type: catalog.TypeInt},
+			{Name: "col", Type: catalog.TypeInt32Type},
 		},
 	}
 
@@ -222,7 +222,7 @@ func TestTableSerializeSingleColumn(t *testing.T) {
 		Name:     "single",
 		HeapName: "single_heap",
 		Columns: []catalog.Column{
-			{Name: "id", Type: catalog.TypeInt},
+			{Name: "id", Type: catalog.TypeInt32Type},
 		},
 	}
 
@@ -240,7 +240,7 @@ func TestTableSerializeSingleColumn(t *testing.T) {
 		t.Fatalf("len(Columns) = %d, want 1", len(got.Columns))
 	}
 
-	if got.Columns[0].Name != "id" || got.Columns[0].Type != catalog.TypeInt {
+	if got.Columns[0].Name != "id" || got.Columns[0].Type != catalog.TypeInt32Type {
 		t.Errorf("Column = %+v, want {Name:id Type:TypeInt}", got.Columns[0])
 	}
 }
@@ -250,9 +250,9 @@ func TestTableSerializeAllTypes(t *testing.T) {
 		Name:     "all_types",
 		HeapName: "all_types_heap",
 		Columns: []catalog.Column{
-			{Name: "a", Type: catalog.TypeInt},
-			{Name: "b", Type: catalog.TypeString},
-			{Name: "c", Type: catalog.TypeBool},
+			{Name: "a", Type: catalog.TypeInt32Type},
+			{Name: "b", Type: catalog.TypeStringType},
+			{Name: "c", Type: catalog.TypeBoolType},
 		},
 	}
 
@@ -266,7 +266,7 @@ func TestTableSerializeAllTypes(t *testing.T) {
 		t.Fatalf("NewTableFromBytes() error = %v", err)
 	}
 
-	types := []catalog.DataType{catalog.TypeInt, catalog.TypeString, catalog.TypeBool}
+	types := []catalog.DataType{catalog.TypeInt32Type, catalog.TypeStringType, catalog.TypeBoolType}
 	for i, dt := range types {
 		if got.Columns[i].Type != dt {
 			t.Errorf("Columns[%d].Type = %v, want %v", i, got.Columns[i].Type, dt)
@@ -284,7 +284,7 @@ func TestTableSerializeLongNames(t *testing.T) {
 		Name:     longName,
 		HeapName: longName,
 		Columns: []catalog.Column{
-			{Name: "id", Type: catalog.TypeInt},
+			{Name: "id", Type: catalog.TypeInt32Type},
 		},
 	}
 
@@ -326,7 +326,7 @@ func TestNewTableFromBytesInvalid(t *testing.T) {
 	t.Run("truncated heap name", func(t *testing.T) {
 		data := []byte{
 			0x01, 0x00, // name length = 1
-			'a', // name = "a"
+			'a',        // name = "a"
 			0x05, 0x00, // heap name length = 5
 			'b', 'c', // only 2 bytes but heap name expects 5
 		}
@@ -339,7 +339,7 @@ func TestNewTableFromBytesInvalid(t *testing.T) {
 	t.Run("truncated column count", func(t *testing.T) {
 		data := []byte{
 			0x01, 0x00, // name length = 1
-			'a', // name = "a"
+			'a',        // name = "a"
 			0x01, 0x00, // heap name length = 1
 			'b', // heap name = "b"
 			// missing column count
@@ -353,9 +353,9 @@ func TestNewTableFromBytesInvalid(t *testing.T) {
 	t.Run("truncated column data", func(t *testing.T) {
 		data := []byte{
 			0x01, 0x00, // name length = 1
-			'a', // name = "a"
+			'a',        // name = "a"
 			0x01, 0x00, // heap name length = 1
-			'b', // heap name = "b"
+			'b',        // heap name = "b"
 			0x01, 0x00, // column count = 1
 			0x05, 0x00, // column length = 5
 			0x01, 0x00, // column name length = 1

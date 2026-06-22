@@ -22,50 +22,50 @@ func New(pager *pager.Pager, metadata *catalog.HeapMetadata, allocatePage func(p
 	}
 }
 
-func (h *HeapFile) InsertRecord(record record.Record) (*RecordID, error) {
+func (h *HeapFile) InsertRecord(record record.Record) (*RecordID, bool, error) {
 	// buscar pagina con espacio
 	recordSize := record.Size()
 
-	page, err := h.getPageWithSpace(recordSize)
+	page, isNew, err := h.getPageWithSpace(recordSize)
 
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	slotID, err := page.InsertRecord(record)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	err = h.pager.SavePage(page)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	return &RecordID{
 		PageID: page.Header.PageID,
 		SlotID: slotID,
-	}, nil
+	}, isNew, nil
 }
 
-func (h *HeapFile) getPageWithSpace(recordSize uint16) (*page.Page, error) {
+func (h *HeapFile) getPageWithSpace(recordSize uint16) (*page.Page, bool, error) {
 	for _, pageID := range h.metadata.PageIDs {
 		page, err := h.pager.LoadPage(pageID)
 		if err != nil {
-			return nil, err
+			return nil, false, err
 		}
 
 		if page.CanFit(recordSize) {
-			return page, nil
+			return page, false, nil
 		}
 	}
 
 	newPage, err := h.allocatePage(page.DataPage) // revisar si debe quedar quemado o se debe recibir en parametro
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	h.metadata.PageIDs = append(h.metadata.PageIDs, newPage.Header.PageID)
-	return newPage, nil
+	return newPage, true, nil
 }
 
 func (h *HeapFile) GetRecord(rid *RecordID) (record.Record, error) {

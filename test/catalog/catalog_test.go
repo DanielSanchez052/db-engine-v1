@@ -81,8 +81,8 @@ func TestCatalogAddGetTable(t *testing.T) {
 		Name:     "users",
 		HeapName: "users_heap",
 		Columns: []catalog.Column{
-			{Name: "id", Type: catalog.TypeInt},
-			{Name: "name", Type: catalog.TypeString},
+			{Name: "id", Type: catalog.TypeInt32Type},
+			{Name: "name", Type: catalog.TypeStringType},
 		},
 	}
 
@@ -188,9 +188,9 @@ func TestCatalogPersistTablesAndHeaps(t *testing.T) {
 		Name:     "products",
 		HeapName: "products_heap",
 		Columns: []catalog.Column{
-			{Name: "id", Type: catalog.TypeInt},
-			{Name: "name", Type: catalog.TypeString},
-			{Name: "price", Type: catalog.TypeInt},
+			{Name: "id", Type: catalog.TypeInt32Type},
+			{Name: "name", Type: catalog.TypeStringType},
+			{Name: "price", Type: catalog.TypeInt32Type},
 		},
 	}
 	cat.AddTable(table)
@@ -245,9 +245,9 @@ func TestCatalogMultipleEntities(t *testing.T) {
 	}
 
 	tables := []*catalog.Table{
-		{Name: "users", HeapName: "users_heap", Columns: []catalog.Column{{Name: "id", Type: catalog.TypeInt}}},
-		{Name: "orders", HeapName: "orders_heap", Columns: []catalog.Column{{Name: "id", Type: catalog.TypeInt}, {Name: "total", Type: catalog.TypeInt}}},
-		{Name: "products", HeapName: "products_heap", Columns: []catalog.Column{{Name: "id", Type: catalog.TypeInt}, {Name: "name", Type: catalog.TypeString}, {Name: "price", Type: catalog.TypeInt}}},
+		{Name: "users", HeapName: "users_heap", Columns: []catalog.Column{{Name: "id", Type: catalog.TypeInt32Type}}},
+		{Name: "orders", HeapName: "orders_heap", Columns: []catalog.Column{{Name: "id", Type: catalog.TypeInt32Type}, {Name: "total", Type: catalog.TypeInt32Type}}},
+		{Name: "products", HeapName: "products_heap", Columns: []catalog.Column{{Name: "id", Type: catalog.TypeInt32Type}, {Name: "name", Type: catalog.TypeStringType}, {Name: "price", Type: catalog.TypeInt32Type}}},
 	}
 
 	heaps := []*catalog.HeapMetadata{
@@ -335,7 +335,7 @@ func TestCatalogAddTableThenGetHeap(t *testing.T) {
 	table := &catalog.Table{
 		Name:     "test",
 		HeapName: "test_heap",
-		Columns:  []catalog.Column{{Name: "col1", Type: catalog.TypeInt}},
+		Columns:  []catalog.Column{{Name: "col1", Type: catalog.TypeInt32Type}},
 	}
 	cat.AddTable(table)
 
