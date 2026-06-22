@@ -43,12 +43,32 @@ El objetivo del proyecto es comprender e implementar los componentes fundamental
 - [x] Slotted Pages
 - [x] HeapFile
 - [x] Database
+- [x] Tuple / Value System (Int32, String, Bool)
+- [x] Record
+
+### Catalog Layer
+
+- [x] DataType (TypeInt32Type, TypeStringType, TypeBoolType)
+- [x] Column (name + type)
+- [x] Table (name + columns + heap reference)
+- [x] HeapMetadata (name + page IDs)
+- [x] CatalogManager (CRUD persistente)
+- [x] Serialización/Deserialización de catálogo
+
+### Database API
+
+- [x] Create / Open / Close
+- [x] AllocatePage / FreePage (esqueleto)
+- [x] CreateTable
+- [x] OpenHeapFile
+- [x] Insert (record en tabla)
+- [x] GetRecord (desde tabla)
 
 ### Pendiente
 
-- [ ] Catalog
 - [ ] Executor
 - [ ] Parser SQL
+- [ ] Engine
 
 ### Future Work:
 - [ ] Free Space Map
@@ -62,22 +82,28 @@ El objetivo del proyecto es comprender e implementar los componentes fundamental
 Engine
  │
  ▼
-Catalog
+Catalog  ◄── Metadata (Tables, Columns, Heaps)
  │
  ▼
 Executor
  │
  ▼
-Pager
+Tuple/Value  ◄── Tipado (Int32, String, Bool)
  │
  ▼
-Page
+HeapFile  ◄── Registros en Slotted Pages
  │
  ▼
-FileManager
+Pager  ◄── Carga/Persistencia de Páginas
  │
  ▼
-database.db
+Page / Slot  ◄── Layout binario
+ │
+ ▼
+FileManager  ◄── I/O de archivos
+ │
+ ▼
+database.db   catalog.db
 ```
 
 ---
@@ -277,15 +303,12 @@ Los registros serán almacenados como:
 type Record []byte
 ```
 
-El Storage Engine no conoce:
+Las capas superiores (Tuple/Value) son responsables de la interpretación estructurada:
 
-- Tablas
-- Columnas
-- Tipos
-
-Solo administra bytes.
-
-La interpretación de los registros será responsabilidad de capas superiores.
+- `Int32Value` — entero 32-bit LittleEndian
+- `StringValue` — string UTF-8 con prefijo de longitud (2 bytes LE)
+- `BoolValue` — booleano como byte único (0 = false, 1 = true)
+- `Tuple` — secuencia serializada de Values según un esquema de Columnas
 
 ---
 
@@ -382,6 +405,8 @@ Una vez existan bases de datos persistidas, las siguientes características se c
 - Endianness
 - Slotted Pages
 - Magic Number
+- Catalog binary format (table count + tables + heap count + heaps)
+- Tuple/Value format (Int32: 4 bytes LE, String: 2-byte length prefix + UTF-8, Bool: 1 byte)
 
 Cualquier cambio deberá tratarse como una nueva versión del formato de almacenamiento.
 
@@ -398,21 +423,24 @@ Cualquier cambio deberá tratarse como una nueva versión del formato de almacen
 
 ## Fase 2 - Storage Engine
 
-- [ ] Slot
-- [ ] Pager
-- [ ] Record Management
-- [ ] Slotted Pages
+- [x] Slot
+- [x] Pager
+- [x] Record Management
+- [x] Slotted Pages
+- [x] HeapFile
+- [x] Tuple / Values (Int32, String, Bool)
 
 ## Fase 3 - Catálogo
 
-- [ ] Tables
-- [ ] Columns
-- [ ] Schemas
+- [x] Tables
+- [x] Columns
+- [x] Schemas (HeapMetadata)
+- [x] CatalogManager (persistencia)
 
 ## Fase 4 - Query Engine
 
-- [ ] CREATE TABLE
-- [ ] INSERT
+- [x] CREATE TABLE (vía Database.CreateTable)
+- [x] INSERT (vía Database.Insert)
 - [ ] SELECT
 
 ## Fase 5 - SQL Parser
