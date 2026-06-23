@@ -13,5 +13,6 @@ var (
 	ErrInvalidColumns      = errors.New("invalid columns")
 	ErrTableNotFound       = errors.New("table not found")
 	ErrTableAlreadyExists  = errors.New("table already exists")
+	ErrInvalidRecord       = errors.New("invalid record")
 	ErrInvalidRecordID     = errors.New("invalid record id")
 )

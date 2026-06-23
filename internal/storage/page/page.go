@@ -17,6 +17,10 @@ func NewPage(id uint64, pageType PageType) *Page {
 	}
 }
 
+func (p *Page) GetPageID() uint64 {
+	return p.Header.PageID
+}
+
 func (p *Page) Serialize() ([]byte, error) {
 	if err := p.Validate(); err != nil {
 		return nil, err
@@ -85,6 +89,10 @@ func (p *Page) CanFit(recordSize uint16) bool {
 
 func (p *Page) SlotOffset(slotID uint16) uint16 {
 	return storage.PageHeaderSize + slotID*storage.SlotSize
+}
+
+func (p *Page) GetSlotCount() uint16 {
+	return p.Header.SlotCount
 }
 
 func (p *Page) WriteSlot(slotID uint16, s *slot.Slot) error {

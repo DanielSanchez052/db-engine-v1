@@ -122,3 +122,21 @@ func valueSize(data []byte, dataType catalog.DataType) (uint16, error) {
 		return 0, ErrInvalidDataType
 	}
 }
+
+func (t *Tuple) Validate(columns []catalog.Column) error {
+	if len(t.Values) != len(columns) {
+		return ErrInvalidTuple
+	}
+
+	for i, value := range t.Values {
+		if value == nil {
+			return ErrInvalidTuple
+		}
+
+		if value.Type() != columns[i].Type {
+			return ErrInvalidTuple
+		}
+	}
+
+	return nil
+}

@@ -13,6 +13,7 @@ import (
 	"db-engine-v1/internal/storage/heapfile"
 	"db-engine-v1/internal/storage/page"
 	"db-engine-v1/internal/storage/record"
+	"db-engine-v1/internal/storage/tuple"
 )
 
 func TestNewDatabaseHeader(t *testing.T) {
@@ -559,15 +560,15 @@ func TestCreateTablePersistsAfterReopen(t *testing.T) {
 	}
 
 	columns := []catalog.Column{
-		{Name: "id", Type: catalog.TypeInt32Type},
+		{Name: "name", Type: catalog.TypeStringType},
 	}
 	err = db.CreateTable("users", columns)
 	if err != nil {
 		t.Fatalf("CreateTable() error = %v", err)
 	}
 
-	rec := record.Record([]byte("persistent"))
-	rid, err := db.Insert("users", rec)
+	tup := &tuple.Tuple{Values: []tuple.Value{tuple.StringValue{Value: "persistent"}}}
+	rid, err := db.Insert("users", tup)
 	if err != nil {
 		t.Fatalf("Insert() error = %v", err)
 	}
@@ -579,12 +580,16 @@ func TestCreateTablePersistsAfterReopen(t *testing.T) {
 	}
 	defer db2.Close()
 
-	got, err := db2.GetRecord("users", rid)
+	got, err := db2.GetTuple("users", rid)
 	if err != nil {
-		t.Fatalf("GetRecord() after reopen error = %v", err)
+		t.Fatalf("GetTuple() after reopen error = %v", err)
 	}
-	if string(got) != "persistent" {
-		t.Errorf("GetRecord() after reopen = %q, want %q", string(got), "persistent")
+	if len(got.Values) != 1 {
+		t.Fatalf("len(Values) = %d, want 1", len(got.Values))
+	}
+	v := got.Values[0].(*tuple.StringValue)
+	if v.Value != "persistent" {
+		t.Errorf("value = %q, want %q", v.Value, "persistent")
 	}
 }
 
@@ -662,8 +667,8 @@ func TestDatabaseInsert(t *testing.T) {
 		t.Fatalf("CreateTable() error = %v", err)
 	}
 
-	rec := record.Record([]byte("hello"))
-	rid, err := db.Insert("users", rec)
+	tup := &tuple.Tuple{Values: []tuple.Value{tuple.Int32Value{Value: 100}}}
+	rid, err := db.Insert("users", tup)
 	if err != nil {
 		t.Fatalf("Insert() error = %v, want nil", err)
 	}
@@ -681,7 +686,7 @@ func TestDatabaseInsert(t *testing.T) {
 	}
 }
 
-func TestDatabaseInsertAndGetRecord(t *testing.T) {
+func TestDatabaseInsertAndGetTuple(t *testing.T) {
 	dir := t.TempDir()
 	path := dir + "/test.db"
 
@@ -697,19 +702,23 @@ func TestDatabaseInsertAndGetRecord(t *testing.T) {
 		t.Fatalf("CreateTable() error = %v", err)
 	}
 
-	rec := record.Record([]byte("Alice"))
-	rid, err := db.Insert("users", rec)
+	tup := &tuple.Tuple{Values: []tuple.Value{tuple.StringValue{Value: "Alice"}}}
+	rid, err := db.Insert("users", tup)
 	if err != nil {
 		t.Fatalf("Insert() error = %v", err)
 	}
 
-	got, err := db.GetRecord("users", rid)
+	got, err := db.GetTuple("users", rid)
 	if err != nil {
-		t.Fatalf("GetRecord() error = %v, want nil", err)
+		t.Fatalf("GetTuple() error = %v, want nil", err)
 	}
 
-	if string(got) != "Alice" {
-		t.Errorf("GetRecord() = %q, want %q", string(got), "Alice")
+	if len(got.Values) != 1 {
+		t.Fatalf("len(Values) = %d, want 1", len(got.Values))
+	}
+	v := got.Values[0].(*tuple.StringValue)
+	if v.Value != "Alice" {
+		t.Errorf("value = %q, want %q", v.Value, "Alice")
 	}
 }
 
@@ -729,28 +738,36 @@ func TestDatabaseInsertMultipleRecords(t *testing.T) {
 		t.Fatalf("CreateTable() error = %v", err)
 	}
 
-	records := []record.Record{
-		record.Record([]byte("Alice")),
-		record.Record([]byte("Bob")),
-		record.Record([]byte("Charlie")),
+	records := []struct {
+		name  string
+		value string
+	}{
+		{"Alice", "Alice"},
+		{"Bob", "Bob"},
+		{"Charlie", "Charlie"},
 	}
 
 	var rids []*heapfile.RecordID
 	for _, rec := range records {
-		rid, err := db.Insert("users", rec)
+		tup := &tuple.Tuple{Values: []tuple.Value{tuple.StringValue{Value: rec.value}}}
+		rid, err := db.Insert("users", tup)
 		if err != nil {
-			t.Fatalf("Insert(%q) error = %v", string(rec), err)
+			t.Fatalf("Insert(%q) error = %v", rec.value, err)
 		}
 		rids = append(rids, rid)
 	}
 
 	for i, rid := range rids {
-		got, err := db.GetRecord("users", rid)
+		got, err := db.GetTuple("users", rid)
 		if err != nil {
-			t.Fatalf("GetRecord(%d) error = %v", i, err)
+			t.Fatalf("GetTuple(%d) error = %v", i, err)
 		}
-		if string(got) != string(records[i]) {
-			t.Errorf("GetRecord(%d) = %q, want %q", i, string(got), string(records[i]))
+		if len(got.Values) != 1 {
+			t.Fatalf("len(Values) = %d, want 1", len(got.Values))
+		}
+		v := got.Values[0].(*tuple.StringValue)
+		if v.Value != records[i].value {
+			t.Errorf("value[%d] = %q, want %q", i, v.Value, records[i].value)
 		}
 	}
 }
@@ -770,11 +787,24 @@ func TestDatabaseInsertPersistsAfterReopen(t *testing.T) {
 		t.Fatalf("CreateTable() error = %v", err)
 	}
 
-	rec := record.Record([]byte("Persistent data"))
-	rid, err := db.Insert("users", rec)
+	tup := &tuple.Tuple{Values: []tuple.Value{tuple.StringValue{Value: "Persistent data"}}}
+	rid, err := db.Insert("users", tup)
 	if err != nil {
 		t.Fatalf("Insert() error = %v", err)
 	}
+
+	got, err := db.GetTuple("users", rid)
+	if err != nil {
+		t.Fatalf("GetTuple() error = %v", err)
+	}
+	if len(got.Values) != 1 {
+		t.Fatalf("len(Values) = %d, want 1", len(got.Values))
+	}
+	v := got.Values[0].(*tuple.StringValue)
+	if v.Value != "Persistent data" {
+		t.Errorf("value = %q, want %q", v.Value, "Persistent data")
+	}
+
 	db.Close()
 
 	db2, err := database.Open(path)
@@ -783,12 +813,16 @@ func TestDatabaseInsertPersistsAfterReopen(t *testing.T) {
 	}
 	defer db2.Close()
 
-	got, err := db2.GetRecord("users", rid)
+	got2, err := db2.GetTuple("users", rid)
 	if err != nil {
-		t.Fatalf("GetRecord() after reopen error = %v", err)
+		t.Fatalf("GetTuple() after reopen error = %v", err)
 	}
-	if string(got) != "Persistent data" {
-		t.Errorf("GetRecord() after reopen = %q, want %q", string(got), "Persistent data")
+	if len(got2.Values) != 1 {
+		t.Fatalf("len(Values) = %d, want 1", len(got2.Values))
+	}
+	v2 := got2.Values[0].(*tuple.StringValue)
+	if v2.Value != "Persistent data" {
+		t.Errorf("value after reopen = %q, want %q", v2.Value, "Persistent data")
 	}
 }
 
@@ -802,7 +836,8 @@ func TestDatabaseInsertTableNotFound(t *testing.T) {
 	}
 	defer db.Close()
 
-	_, err = db.Insert("nonexistent", record.Record([]byte("data")))
+	tup := &tuple.Tuple{Values: []tuple.Value{tuple.Int32Value{Value: 1}}}
+	_, err = db.Insert("nonexistent", tup)
 	if !errors.Is(err, database.ErrTableNotFound) {
 		t.Errorf("Insert() error = %v, want %v", err, database.ErrTableNotFound)
 	}
@@ -818,13 +853,14 @@ func TestDatabaseInsertEmptyTableName(t *testing.T) {
 	}
 	defer db.Close()
 
-	_, err = db.Insert("", record.Record([]byte("data")))
+	tup := &tuple.Tuple{Values: []tuple.Value{tuple.Int32Value{Value: 1}}}
+	_, err = db.Insert("", tup)
 	if !errors.Is(err, database.ErrInvalidTableName) {
 		t.Errorf("Insert() error = %v, want %v", err, database.ErrInvalidTableName)
 	}
 }
 
-func TestDatabaseGetRecordTableNotFound(t *testing.T) {
+func TestDatabaseGetTupleTableNotFound(t *testing.T) {
 	dir := t.TempDir()
 	path := dir + "/test.db"
 
@@ -835,13 +871,13 @@ func TestDatabaseGetRecordTableNotFound(t *testing.T) {
 	defer db.Close()
 
 	rid := &heapfile.RecordID{PageID: 1, SlotID: 0}
-	_, err = db.GetRecord("nonexistent", rid)
+	_, err = db.GetTuple("nonexistent", rid)
 	if !errors.Is(err, database.ErrTableNotFound) {
-		t.Errorf("GetRecord() error = %v, want %v", err, database.ErrTableNotFound)
+		t.Errorf("GetTuple() error = %v, want %v", err, database.ErrTableNotFound)
 	}
 }
 
-func TestDatabaseGetRecordEmptyTableName(t *testing.T) {
+func TestDatabaseGetTupleEmptyTableName(t *testing.T) {
 	dir := t.TempDir()
 	path := dir + "/test.db"
 
@@ -851,13 +887,13 @@ func TestDatabaseGetRecordEmptyTableName(t *testing.T) {
 	}
 	defer db.Close()
 
-	_, err = db.GetRecord("", &heapfile.RecordID{PageID: 1, SlotID: 0})
+	_, err = db.GetTuple("", &heapfile.RecordID{PageID: 1, SlotID: 0})
 	if !errors.Is(err, database.ErrInvalidTableName) {
-		t.Errorf("GetRecord() error = %v, want %v", err, database.ErrInvalidTableName)
+		t.Errorf("GetTuple() error = %v, want %v", err, database.ErrInvalidTableName)
 	}
 }
 
-func TestDatabaseGetRecordNilRID(t *testing.T) {
+func TestDatabaseGetTupleNilRID(t *testing.T) {
 	dir := t.TempDir()
 	path := dir + "/test.db"
 
@@ -873,9 +909,60 @@ func TestDatabaseGetRecordNilRID(t *testing.T) {
 		t.Fatalf("CreateTable() error = %v", err)
 	}
 
-	_, err = db.GetRecord("users", nil)
+	_, err = db.GetTuple("users", nil)
 	if !errors.Is(err, database.ErrInvalidRecordID) {
-		t.Errorf("GetRecord() error = %v, want %v", err, database.ErrInvalidRecordID)
+		t.Errorf("GetTuple() error = %v, want %v", err, database.ErrInvalidRecordID)
+	}
+}
+
+func TestDatabaseInsertWrongValueCount(t *testing.T) {
+	dir := t.TempDir()
+	path := dir + "/test.db"
+
+	db, err := database.Create(path)
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	defer db.Close()
+
+	err = db.CreateTable("users", []catalog.Column{
+		{Name: "id", Type: catalog.TypeInt32Type},
+		{Name: "name", Type: catalog.TypeStringType},
+	})
+	if err != nil {
+		t.Fatalf("CreateTable() error = %v", err)
+	}
+
+	// Only 1 value, table expects 2
+	tup := &tuple.Tuple{Values: []tuple.Value{tuple.StringValue{Value: "Alice"}}}
+	_, err = db.Insert("users", tup)
+	if err != tuple.ErrInvalidTuple {
+		t.Errorf("Insert() error = %v, want %v", err, tuple.ErrInvalidTuple)
+	}
+}
+
+func TestDatabaseInsertWrongValueType(t *testing.T) {
+	dir := t.TempDir()
+	path := dir + "/test.db"
+
+	db, err := database.Create(path)
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	defer db.Close()
+
+	err = db.CreateTable("users", []catalog.Column{
+		{Name: "name", Type: catalog.TypeStringType},
+	})
+	if err != nil {
+		t.Fatalf("CreateTable() error = %v", err)
+	}
+
+	// Int32Value where StringValue is expected
+	tup := &tuple.Tuple{Values: []tuple.Value{tuple.Int32Value{Value: 42}}}
+	_, err = db.Insert("users", tup)
+	if err != tuple.ErrInvalidTuple {
+		t.Errorf("Insert() error = %v, want %v", err, tuple.ErrInvalidTuple)
 	}
 }
 
@@ -899,29 +986,39 @@ func TestDatabaseInsertAndGetDifferentTables(t *testing.T) {
 		t.Fatalf("CreateTable('products') error = %v", err)
 	}
 
-	rid1, err := db.Insert("users", record.Record([]byte("Alice")))
+	tup1 := &tuple.Tuple{Values: []tuple.Value{tuple.StringValue{Value: "Alice"}}}
+	rid1, err := db.Insert("users", tup1)
 	if err != nil {
 		t.Fatalf("Insert('users') error = %v", err)
 	}
 
-	rid2, err := db.Insert("products", record.Record([]byte("Widget")))
+	tup2 := &tuple.Tuple{Values: []tuple.Value{tuple.StringValue{Value: "Widget"}}}
+	rid2, err := db.Insert("products", tup2)
 	if err != nil {
 		t.Fatalf("Insert('products') error = %v", err)
 	}
 
-	got1, err := db.GetRecord("users", rid1)
+	got1, err := db.GetTuple("users", rid1)
 	if err != nil {
-		t.Fatalf("GetRecord('users') error = %v", err)
+		t.Fatalf("GetTuple('users') error = %v", err)
 	}
-	if string(got1) != "Alice" {
-		t.Errorf("GetRecord('users') = %q, want %q", string(got1), "Alice")
+	if len(got1.Values) != 1 {
+		t.Fatalf("len(Values) = %d, want 1", len(got1.Values))
+	}
+	v1 := got1.Values[0].(*tuple.StringValue)
+	if v1.Value != "Alice" {
+		t.Errorf("value = %q, want %q", v1.Value, "Alice")
 	}
 
-	got2, err := db.GetRecord("products", rid2)
+	got2, err := db.GetTuple("products", rid2)
 	if err != nil {
-		t.Fatalf("GetRecord('products') error = %v", err)
+		t.Fatalf("GetTuple('products') error = %v", err)
 	}
-	if string(got2) != "Widget" {
-		t.Errorf("GetRecord('products') = %q, want %q", string(got2), "Widget")
+	if len(got2.Values) != 1 {
+		t.Fatalf("len(Values) = %d, want 1", len(got2.Values))
+	}
+	v2 := got2.Values[0].(*tuple.StringValue)
+	if v2.Value != "Widget" {
+		t.Errorf("value = %q, want %q", v2.Value, "Widget")
 	}
 }
