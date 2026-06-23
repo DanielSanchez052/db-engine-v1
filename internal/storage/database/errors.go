@@ -15,4 +15,5 @@ var (
 	ErrTableAlreadyExists  = errors.New("table already exists")
 	ErrInvalidRecord       = errors.New("invalid record")
 	ErrInvalidRecordID     = errors.New("invalid record id")
+	ErrScanDone            = errors.New("scan done")
 )
