@@ -10,14 +10,14 @@ import (
 )
 
 func TestNewStringValue(t *testing.T) {
-	v := tuple.StringValue{Value: "hello"}
+	v := tuple.NewStringValue("hello")
 	if v.Value != "hello" {
 		t.Errorf("Value = %q, want %q", v.Value, "hello")
 	}
 }
 
 func TestStringValueType(t *testing.T) {
-	v := tuple.StringValue{Value: "test"}
+	v := tuple.NewStringValue("test")
 	if v.Type() != catalog.TypeStringType {
 		t.Errorf("Type() = %v, want %v", v.Type(), catalog.TypeStringType)
 	}
@@ -31,14 +31,14 @@ func TestStringValueSize(t *testing.T) {
 	}{
 		{"empty", "", catalog.StringLengthSize},
 		{"ascii", "hello", catalog.StringLengthSize + 5},
-		{"tildes", "café", catalog.StringLengthSize + 5},  // café = 5 bytes in UTF-8
-		{"japanese", "日本", catalog.StringLengthSize + 6}, // 日本 = 6 bytes
-		{"emoji", "😊", catalog.StringLengthSize + 4},      // 😊 = 4 bytes
+		{"tildes", "café", catalog.StringLengthSize + 5},
+		{"japanese", "日本", catalog.StringLengthSize + 6},
+		{"emoji", "😊", catalog.StringLengthSize + 4},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			v := tuple.StringValue{Value: tt.value}
+			v := tuple.NewStringValue(tt.value)
 			got := v.Size()
 			if got != tt.want {
 				t.Errorf("Size() = %d, want %d (len(value)=%d)", got, tt.want, len(tt.value))
@@ -63,7 +63,7 @@ func TestStringValueSerialize(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			v := tuple.StringValue{Value: tt.value}
+			v := tuple.NewStringValue(tt.value)
 
 			data, err := v.Serialize()
 			if err != nil {
@@ -88,7 +88,7 @@ func TestStringValueSerialize(t *testing.T) {
 }
 
 func TestStringValueSerializeTooLong(t *testing.T) {
-	v := tuple.StringValue{Value: string(make([]byte, math.MaxUint16+1))}
+	v := tuple.NewStringValue(string(make([]byte, math.MaxUint16+1)))
 	_, err := v.Serialize()
 	if err != tuple.ErrInvalidValue {
 		t.Errorf("Serialize() error = %v, want %v", err, tuple.ErrInvalidValue)
@@ -111,7 +111,7 @@ func TestStringValueFromBytes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			v := tuple.StringValue{Value: tt.value}
+			v := tuple.NewStringValue(tt.value)
 			data, err := v.Serialize()
 			if err != nil {
 				t.Fatalf("Serialize() error = %v", err)
@@ -195,7 +195,7 @@ func TestStringValueFromBytesInvalidInput(t *testing.T) {
 }
 
 func TestStringValueRoundTrip(t *testing.T) {
-	original := tuple.StringValue{Value: "áéíóú über café ñoño 😊"}
+	original := tuple.NewStringValue("áéíóú über café ñoño 😊")
 
 	data, err := original.Serialize()
 	if err != nil {
@@ -225,7 +225,7 @@ func TestStringValueString(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			v := tuple.StringValue{Value: tt.value}
+			v := tuple.NewStringValue(tt.value)
 			got := v.String()
 			if got != tt.value {
 				t.Errorf("String() = %q, want %q", got, tt.value)
@@ -235,7 +235,7 @@ func TestStringValueString(t *testing.T) {
 }
 
 func TestStringValueImplementsValue(t *testing.T) {
-	var v tuple.Value = tuple.StringValue{Value: "hello"}
+	var v tuple.Value = tuple.NewStringValue("hello")
 
 	if v.Type() != catalog.TypeStringType {
 		t.Errorf("Type() = %v, want %v", v.Type(), catalog.TypeStringType)
@@ -282,7 +282,7 @@ func TestStringValueZeroValue(t *testing.T) {
 func TestStringValueMaxLength(t *testing.T) {
 	// Create a string of exactly MaxUint16 bytes
 	s := strings.Repeat("a", math.MaxUint16)
-	v := tuple.StringValue{Value: s}
+	v := tuple.NewStringValue(s)
 
 	data, err := v.Serialize()
 	if err != nil {
@@ -335,7 +335,7 @@ func TestStringValueUTF8Tildes(t *testing.T) {
 
 	for _, input := range inputs {
 		t.Run(input, func(t *testing.T) {
-			v := tuple.StringValue{Value: input}
+			v := tuple.NewStringValue(input)
 
 			data, err := v.Serialize()
 			if err != nil {

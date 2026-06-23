@@ -8,38 +8,38 @@ import (
 )
 
 func TestNewBoolValue(t *testing.T) {
-	v := tuple.BoolValue{Value: true}
+	v := tuple.NewBoolValue(true)
 	if v.Value != true {
 		t.Errorf("Value = %v, want true", v.Value)
 	}
 
-	v2 := tuple.BoolValue{Value: false}
+	v2 := tuple.NewBoolValue(false)
 	if v2.Value != false {
 		t.Errorf("Value = %v, want false", v2.Value)
 	}
 }
 
 func TestBoolValueType(t *testing.T) {
-	v := tuple.BoolValue{Value: true}
+	v := tuple.NewBoolValue(true)
 	if v.Type() != catalog.TypeBoolType {
 		t.Errorf("Type() = %v, want %v", v.Type(), catalog.TypeBoolType)
 	}
 }
 
 func TestBoolValueSize(t *testing.T) {
-	v := tuple.BoolValue{Value: true}
+	v := tuple.NewBoolValue(true)
 	if v.Size() != catalog.BoolSize {
 		t.Errorf("Size() = %d, want %d", v.Size(), catalog.BoolSize)
 	}
 
-	v2 := tuple.BoolValue{Value: false}
+	v2 := tuple.NewBoolValue(false)
 	if v2.Size() != catalog.BoolSize {
 		t.Errorf("Size() = %d, want %d", v2.Size(), catalog.BoolSize)
 	}
 }
 
 func TestBoolValueSerialize(t *testing.T) {
-	v := tuple.BoolValue{Value: true}
+	v := tuple.NewBoolValue(true)
 	data, err := v.Serialize()
 	if err != nil {
 		t.Fatalf("Serialize(true) error = %v", err)
@@ -51,7 +51,7 @@ func TestBoolValueSerialize(t *testing.T) {
 		t.Errorf("Serialize(true) = %d, want 1", data[0])
 	}
 
-	v2 := tuple.BoolValue{Value: false}
+	v2 := tuple.NewBoolValue(false)
 	data2, err := v2.Serialize()
 	if err != nil {
 		t.Fatalf("Serialize(false) error = %v", err)
@@ -138,7 +138,7 @@ func TestBoolValueFromBytesInvalid(t *testing.T) {
 
 func TestBoolValueRoundTrip(t *testing.T) {
 	t.Run("true", func(t *testing.T) {
-		original := tuple.BoolValue{Value: true}
+		original := tuple.NewBoolValue(true)
 		data, _ := original.Serialize()
 		restored, err := tuple.NewBoolValueFromBytes(data)
 		if err != nil {
@@ -150,7 +150,7 @@ func TestBoolValueRoundTrip(t *testing.T) {
 	})
 
 	t.Run("false", func(t *testing.T) {
-		original := tuple.BoolValue{Value: false}
+		original := tuple.NewBoolValue(false)
 		data, _ := original.Serialize()
 		restored, err := tuple.NewBoolValueFromBytes(data)
 		if err != nil {
@@ -163,19 +163,19 @@ func TestBoolValueRoundTrip(t *testing.T) {
 }
 
 func TestBoolValueString(t *testing.T) {
-	v1 := tuple.BoolValue{Value: true}
+	v1 := tuple.NewBoolValue(true)
 	if v1.String() != "true" {
 		t.Errorf("String(true) = %q, want %q", v1.String(), "true")
 	}
 
-	v2 := tuple.BoolValue{Value: false}
+	v2 := tuple.NewBoolValue(false)
 	if v2.String() != "false" {
 		t.Errorf("String(false) = %q, want %q", v2.String(), "false")
 	}
 }
 
 func TestBoolValueImplementsValue(t *testing.T) {
-	var v tuple.Value = tuple.BoolValue{Value: true}
+	var v tuple.Value = tuple.NewBoolValue(true)
 
 	if v.Type() != catalog.TypeBoolType {
 		t.Errorf("Type() = %v, want %v", v.Type(), catalog.TypeBoolType)

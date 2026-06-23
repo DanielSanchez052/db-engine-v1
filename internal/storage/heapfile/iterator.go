@@ -25,7 +25,7 @@ func NewIterator(heap *HeapFile) *Iterator {
 
 func (it *Iterator) loadCurrentPage() error {
 	if it.currentPageIndex >= len(it.heap.metadata.PageIDs) {
-		return nil
+		return ErrIteratorDone
 	}
 
 	pageID := it.heap.metadata.PageIDs[it.currentPageIndex]

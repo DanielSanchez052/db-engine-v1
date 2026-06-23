@@ -6,6 +6,12 @@ type BoolValue struct {
 	Value bool
 }
 
+func NewBoolValue(value bool) *BoolValue {
+	return &BoolValue{
+		Value: value,
+	}
+}
+
 func NewBoolValueFromBytes(data []byte) (*BoolValue, error) {
 	if len(data) != catalog.BoolSize {
 		return nil, ErrInvalidValue

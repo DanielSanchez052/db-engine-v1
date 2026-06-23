@@ -9,13 +9,11 @@ import (
 )
 
 func TestNewTuple(t *testing.T) {
-	tup := tuple.Tuple{
-		Values: []tuple.Value{
-			tuple.Int32Value{Value: 42},
-			tuple.StringValue{Value: "hello"},
-			tuple.BoolValue{Value: true},
-		},
-	}
+	tup := tuple.NewTuple(
+		tuple.NewInt32Value(42),
+		tuple.NewStringValue("hello"),
+		tuple.NewBoolValue(true),
+	)
 
 	if len(tup.Values) != 3 {
 		t.Fatalf("len(Values) = %d, want 3", len(tup.Values))
@@ -23,13 +21,11 @@ func TestNewTuple(t *testing.T) {
 }
 
 func TestTupleSize(t *testing.T) {
-	tup := tuple.Tuple{
-		Values: []tuple.Value{
-			tuple.Int32Value{Value: 1},
-			tuple.StringValue{Value: "abc"},
-			tuple.BoolValue{Value: false},
-		},
-	}
+	tup := tuple.NewTuple(
+		tuple.NewInt32Value(1),
+		tuple.NewStringValue("abc"),
+		tuple.NewBoolValue(false),
+	)
 
 	expected := uint16(catalog.Uint32Size + catalog.StringLengthSize + 3 + catalog.BoolSize)
 	if tup.Size() != expected {
@@ -38,19 +34,17 @@ func TestTupleSize(t *testing.T) {
 }
 
 func TestTupleSizeEmpty(t *testing.T) {
-	tup := tuple.Tuple{Values: []tuple.Value{}}
+	tup := tuple.NewTuple()
 	if tup.Size() != 0 {
 		t.Errorf("Size() = %d, want 0", tup.Size())
 	}
 }
 
 func TestTupleSerialize(t *testing.T) {
-	tup := tuple.Tuple{
-		Values: []tuple.Value{
-			tuple.Int32Value{Value: 42},
-			tuple.StringValue{Value: "hi"},
-		},
-	}
+	tup := tuple.NewTuple(
+		tuple.NewInt32Value(42),
+		tuple.NewStringValue("hi"),
+	)
 
 	data, err := tup.Serialize()
 	if err != nil {
@@ -64,7 +58,7 @@ func TestTupleSerialize(t *testing.T) {
 }
 
 func TestNewTupleFromBytesInt32(t *testing.T) {
-	tup := tuple.Tuple{Values: []tuple.Value{tuple.Int32Value{Value: -100}}}
+	tup := tuple.NewTuple(tuple.NewInt32Value(-100))
 	data, err := tup.Serialize()
 	if err != nil {
 		t.Fatalf("Serialize() error = %v", err)
@@ -90,7 +84,7 @@ func TestNewTupleFromBytesInt32(t *testing.T) {
 }
 
 func TestNewTupleFromBytesString(t *testing.T) {
-	tup := tuple.Tuple{Values: []tuple.Value{tuple.StringValue{Value: "café ñoño"}}}
+	tup := tuple.NewTuple(tuple.NewStringValue("café ñoño"))
 	data, err := tup.Serialize()
 	if err != nil {
 		t.Fatalf("Serialize() error = %v", err)
@@ -113,7 +107,7 @@ func TestNewTupleFromBytesString(t *testing.T) {
 
 func TestNewTupleFromBytesBool(t *testing.T) {
 	t.Run("true", func(t *testing.T) {
-		tup := tuple.Tuple{Values: []tuple.Value{tuple.BoolValue{Value: true}}}
+		tup := tuple.NewTuple(tuple.NewBoolValue(true))
 		data, _ := tup.Serialize()
 		columns := []catalog.Column{{Name: "active", Type: catalog.TypeBoolType}}
 		restored, err := tuple.NewTupleFromBytes(data, columns)
@@ -130,7 +124,7 @@ func TestNewTupleFromBytesBool(t *testing.T) {
 	})
 
 	t.Run("false", func(t *testing.T) {
-		tup := tuple.Tuple{Values: []tuple.Value{tuple.BoolValue{Value: false}}}
+		tup := tuple.NewTuple(tuple.NewBoolValue(false))
 		data, _ := tup.Serialize()
 		columns := []catalog.Column{{Name: "active", Type: catalog.TypeBoolType}}
 		restored, err := tuple.NewTupleFromBytes(data, columns)
@@ -148,14 +142,12 @@ func TestNewTupleFromBytesBool(t *testing.T) {
 }
 
 func TestNewTupleFromBytesMixedTypes(t *testing.T) {
-	tup := tuple.Tuple{
-		Values: []tuple.Value{
-			tuple.Int32Value{Value: 1000},
-			tuple.StringValue{Value: "hello"},
-			tuple.BoolValue{Value: true},
-			tuple.Int32Value{Value: -999},
-		},
-	}
+	tup := tuple.NewTuple(
+		tuple.NewInt32Value(1000),
+		tuple.NewStringValue("hello"),
+		tuple.NewBoolValue(true),
+		tuple.NewInt32Value(-999),
+	)
 
 	data, err := tup.Serialize()
 	if err != nil {
@@ -207,7 +199,7 @@ func TestNewTupleFromBytesEmptyColumns(t *testing.T) {
 }
 
 func TestNewTupleFromBytesExtraData(t *testing.T) {
-	tup := tuple.Tuple{Values: []tuple.Value{tuple.Int32Value{Value: 42}}}
+	tup := tuple.NewTuple(tuple.NewInt32Value(42))
 	data, _ := tup.Serialize()
 
 	data = append(data, 0xFF)
@@ -246,16 +238,14 @@ func TestNewTupleFromBytesEmptyData(t *testing.T) {
 
 func TestTupleRoundTrip(t *testing.T) {
 	t.Run("all_types", func(t *testing.T) {
-		original := tuple.Tuple{
-			Values: []tuple.Value{
-				tuple.Int32Value{Value: math.MaxInt32},
-				tuple.StringValue{Value: "áéíóú ñ 😊"},
-				tuple.BoolValue{Value: true},
-				tuple.Int32Value{Value: math.MinInt32},
-				tuple.StringValue{Value: ""},
-				tuple.BoolValue{Value: false},
-			},
-		}
+		original := tuple.NewTuple(
+			tuple.NewInt32Value(math.MaxInt32),
+			tuple.NewStringValue("áéíóú ñ 😊"),
+			tuple.NewBoolValue(true),
+			tuple.NewInt32Value(math.MinInt32),
+			tuple.NewStringValue(""),
+			tuple.NewBoolValue(false),
+		)
 
 		data, err := original.Serialize()
 		if err != nil {
@@ -301,7 +291,7 @@ func TestTupleRoundTrip(t *testing.T) {
 	})
 
 	t.Run("single_int32", func(t *testing.T) {
-		original := tuple.Tuple{Values: []tuple.Value{tuple.Int32Value{Value: 12345}}}
+		original := tuple.NewTuple(tuple.NewInt32Value(12345))
 		data, _ := original.Serialize()
 		columns := []catalog.Column{{Name: "id", Type: catalog.TypeInt32Type}}
 		restored, err := tuple.NewTupleFromBytes(data, columns)
@@ -314,7 +304,7 @@ func TestTupleRoundTrip(t *testing.T) {
 	})
 
 	t.Run("single_string", func(t *testing.T) {
-		original := tuple.Tuple{Values: []tuple.Value{tuple.StringValue{Value: "über cool"}}}
+		original := tuple.NewTuple(tuple.NewStringValue("über cool"))
 		data, _ := original.Serialize()
 		columns := []catalog.Column{{Name: "name", Type: catalog.TypeStringType}}
 		restored, err := tuple.NewTupleFromBytes(data, columns)
@@ -327,7 +317,7 @@ func TestTupleRoundTrip(t *testing.T) {
 	})
 
 	t.Run("single_bool", func(t *testing.T) {
-		original := tuple.Tuple{Values: []tuple.Value{tuple.BoolValue{Value: true}}}
+		original := tuple.NewTuple(tuple.NewBoolValue(true))
 		data, _ := original.Serialize()
 		columns := []catalog.Column{{Name: "active", Type: catalog.TypeBoolType}}
 		restored, err := tuple.NewTupleFromBytes(data, columns)
@@ -359,13 +349,11 @@ func TestNewTupleFromBytesInvalidBool(t *testing.T) {
 }
 
 func TestTupleSizeWithAllTypes(t *testing.T) {
-	tup := tuple.Tuple{
-		Values: []tuple.Value{
-			tuple.Int32Value{Value: 0},
-			tuple.StringValue{Value: "hello"},
-			tuple.BoolValue{Value: true},
-		},
-	}
+	tup := tuple.NewTuple(
+		tuple.NewInt32Value(0),
+		tuple.NewStringValue("hello"),
+		tuple.NewBoolValue(true),
+	)
 
 	expected := catalog.Uint32Size + catalog.StringLengthSize + 5 + catalog.BoolSize
 	if tup.Size() != uint16(expected) {
@@ -379,12 +367,7 @@ func TestTupleSizeWithAllTypes(t *testing.T) {
 }
 
 func TestNewTupleFromBytesEmptyStringColumn(t *testing.T) {
-	tup := tuple.Tuple{
-		Values: []tuple.Value{
-			tuple.StringValue{Value: ""},
-		},
-	}
-
+	tup := tuple.NewTuple(tuple.NewStringValue(""))
 	data, err := tup.Serialize()
 	if err != nil {
 		t.Fatalf("Serialize() error = %v", err)
@@ -403,13 +386,11 @@ func TestNewTupleFromBytesEmptyStringColumn(t *testing.T) {
 }
 
 func TestNewTupleFromBytesMultipleStringsUTF8(t *testing.T) {
-	tup := tuple.Tuple{
-		Values: []tuple.Value{
-			tuple.StringValue{Value: "áéíóú"},
-			tuple.StringValue{Value: "ñññ"},
-			tuple.StringValue{Value: "😊😊"},
-		},
-	}
+	tup := tuple.NewTuple(
+		tuple.NewStringValue("áéíóú"),
+		tuple.NewStringValue("ñññ"),
+		tuple.NewStringValue("😊😊"),
+	)
 
 	data, err := tup.Serialize()
 	if err != nil {

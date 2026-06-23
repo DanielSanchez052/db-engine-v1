@@ -567,7 +567,7 @@ func TestCreateTablePersistsAfterReopen(t *testing.T) {
 		t.Fatalf("CreateTable() error = %v", err)
 	}
 
-	tup := &tuple.Tuple{Values: []tuple.Value{tuple.StringValue{Value: "persistent"}}}
+	tup := tuple.NewTuple(tuple.NewStringValue("persistent"))
 	rid, err := db.Insert("users", tup)
 	if err != nil {
 		t.Fatalf("Insert() error = %v", err)
@@ -667,7 +667,7 @@ func TestDatabaseInsert(t *testing.T) {
 		t.Fatalf("CreateTable() error = %v", err)
 	}
 
-	tup := &tuple.Tuple{Values: []tuple.Value{tuple.Int32Value{Value: 100}}}
+	tup := tuple.NewTuple(tuple.NewInt32Value(100))
 	rid, err := db.Insert("users", tup)
 	if err != nil {
 		t.Fatalf("Insert() error = %v, want nil", err)
@@ -702,7 +702,7 @@ func TestDatabaseInsertAndGetTuple(t *testing.T) {
 		t.Fatalf("CreateTable() error = %v", err)
 	}
 
-	tup := &tuple.Tuple{Values: []tuple.Value{tuple.StringValue{Value: "Alice"}}}
+	tup := tuple.NewTuple(tuple.NewStringValue("Alice"))
 	rid, err := db.Insert("users", tup)
 	if err != nil {
 		t.Fatalf("Insert() error = %v", err)
@@ -749,7 +749,7 @@ func TestDatabaseInsertMultipleRecords(t *testing.T) {
 
 	var rids []*heapfile.RecordID
 	for _, rec := range records {
-		tup := &tuple.Tuple{Values: []tuple.Value{tuple.StringValue{Value: rec.value}}}
+		tup := tuple.NewTuple(tuple.NewStringValue(rec.value))
 		rid, err := db.Insert("users", tup)
 		if err != nil {
 			t.Fatalf("Insert(%q) error = %v", rec.value, err)
@@ -787,7 +787,7 @@ func TestDatabaseInsertPersistsAfterReopen(t *testing.T) {
 		t.Fatalf("CreateTable() error = %v", err)
 	}
 
-	tup := &tuple.Tuple{Values: []tuple.Value{tuple.StringValue{Value: "Persistent data"}}}
+	tup := tuple.NewTuple(tuple.NewStringValue("Persistent data"))
 	rid, err := db.Insert("users", tup)
 	if err != nil {
 		t.Fatalf("Insert() error = %v", err)
@@ -836,7 +836,7 @@ func TestDatabaseInsertTableNotFound(t *testing.T) {
 	}
 	defer db.Close()
 
-	tup := &tuple.Tuple{Values: []tuple.Value{tuple.Int32Value{Value: 1}}}
+	tup := tuple.NewTuple(tuple.NewInt32Value(1))
 	_, err = db.Insert("nonexistent", tup)
 	if !errors.Is(err, database.ErrTableNotFound) {
 		t.Errorf("Insert() error = %v, want %v", err, database.ErrTableNotFound)
@@ -853,7 +853,7 @@ func TestDatabaseInsertEmptyTableName(t *testing.T) {
 	}
 	defer db.Close()
 
-	tup := &tuple.Tuple{Values: []tuple.Value{tuple.Int32Value{Value: 1}}}
+	tup := tuple.NewTuple(tuple.NewInt32Value(1))
 	_, err = db.Insert("", tup)
 	if !errors.Is(err, database.ErrInvalidTableName) {
 		t.Errorf("Insert() error = %v, want %v", err, database.ErrInvalidTableName)
@@ -934,7 +934,7 @@ func TestDatabaseInsertWrongValueCount(t *testing.T) {
 	}
 
 	// Only 1 value, table expects 2
-	tup := &tuple.Tuple{Values: []tuple.Value{tuple.StringValue{Value: "Alice"}}}
+	tup := tuple.NewTuple(tuple.NewStringValue("Alice"))
 	_, err = db.Insert("users", tup)
 	if err != tuple.ErrInvalidTuple {
 		t.Errorf("Insert() error = %v, want %v", err, tuple.ErrInvalidTuple)
@@ -959,7 +959,7 @@ func TestDatabaseInsertWrongValueType(t *testing.T) {
 	}
 
 	// Int32Value where StringValue is expected
-	tup := &tuple.Tuple{Values: []tuple.Value{tuple.Int32Value{Value: 42}}}
+	tup := tuple.NewTuple(tuple.NewInt32Value(42))
 	_, err = db.Insert("users", tup)
 	if err != tuple.ErrInvalidTuple {
 		t.Errorf("Insert() error = %v, want %v", err, tuple.ErrInvalidTuple)
@@ -986,13 +986,13 @@ func TestDatabaseInsertAndGetDifferentTables(t *testing.T) {
 		t.Fatalf("CreateTable('products') error = %v", err)
 	}
 
-	tup1 := &tuple.Tuple{Values: []tuple.Value{tuple.StringValue{Value: "Alice"}}}
+	tup1 := tuple.NewTuple(tuple.NewStringValue("Alice"))
 	rid1, err := db.Insert("users", tup1)
 	if err != nil {
 		t.Fatalf("Insert('users') error = %v", err)
 	}
 
-	tup2 := &tuple.Tuple{Values: []tuple.Value{tuple.StringValue{Value: "Widget"}}}
+	tup2 := tuple.NewTuple(tuple.NewStringValue("Widget"))
 	rid2, err := db.Insert("products", tup2)
 	if err != nil {
 		t.Fatalf("Insert('products') error = %v", err)

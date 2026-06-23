@@ -10,6 +10,12 @@ type Int32Value struct {
 	Value int32
 }
 
+func NewInt32Value(value int32) *Int32Value {
+	return &Int32Value{
+		Value: value,
+	}
+}
+
 func NewInt32ValueFromBytes(data []byte) (*Int32Value, error) {
 	if len(data) != catalog.Uint32Size {
 		return nil, ErrInvalidValue

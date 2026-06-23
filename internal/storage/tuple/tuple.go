@@ -9,6 +9,12 @@ type Tuple struct {
 	Values []Value
 }
 
+func NewTuple(values ...Value) *Tuple {
+	return &Tuple{
+		Values: values,
+	}
+}
+
 func (t *Tuple) Serialize() ([]byte, error) {
 	var result []byte
 

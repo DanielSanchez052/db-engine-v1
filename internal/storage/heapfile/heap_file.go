@@ -19,3 +19,7 @@ func New(pager *pager.Pager, metadata *catalog.HeapMetadata, allocatePage func(p
 		allocatePage: allocatePage,
 	}
 }
+
+func (h *HeapFile) GetPage(pageID uint64) (*page.Page, error) {
+	return h.pager.LoadPage(pageID)
+}

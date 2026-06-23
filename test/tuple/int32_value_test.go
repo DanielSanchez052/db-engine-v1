@@ -11,21 +11,21 @@ import (
 )
 
 func TestNewInt32Value(t *testing.T) {
-	v := tuple.Int32Value{Value: 42}
+	v := tuple.NewInt32Value(42)
 	if v.Value != 42 {
 		t.Errorf("Value = %d, want %d", v.Value, 42)
 	}
 }
 
 func TestInt32ValueType(t *testing.T) {
-	v := tuple.Int32Value{Value: 100}
+	v := tuple.NewInt32Value(100)
 	if v.Type() != catalog.TypeInt32Type {
 		t.Errorf("Type() = %v, want %v", v.Type(), catalog.TypeInt32Type)
 	}
 }
 
 func TestInt32ValueSize(t *testing.T) {
-	v := tuple.Int32Value{Value: 0}
+	v := tuple.NewInt32Value(0)
 	if v.Size() != catalog.Uint32Size {
 		t.Errorf("Size() = %d, want %d", v.Size(), catalog.Uint32Size)
 	}
@@ -45,7 +45,7 @@ func TestInt32ValueSerialize(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			v := tuple.Int32Value{Value: tt.value}
+			v := tuple.NewInt32Value(tt.value)
 			data, err := v.Serialize()
 			if err != nil {
 				t.Fatalf("Serialize() error = %v, want nil", err)
@@ -110,7 +110,7 @@ func TestInt32ValueFromBytesInvalidSize(t *testing.T) {
 }
 
 func TestInt32ValueRoundTrip(t *testing.T) {
-	original := tuple.Int32Value{Value: -12345}
+	original := tuple.NewInt32Value(-12345)
 
 	data, err := original.Serialize()
 	if err != nil {
@@ -141,7 +141,7 @@ func TestInt32ValueString(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.want, func(t *testing.T) {
-			v := tuple.Int32Value{Value: tt.value}
+			v := tuple.NewInt32Value(tt.value)
 			got := v.String()
 			if got != tt.want {
 				t.Errorf("String() = %q, want %q", got, tt.want)
@@ -151,7 +151,7 @@ func TestInt32ValueString(t *testing.T) {
 }
 
 func TestInt32ValueImplementsValue(t *testing.T) {
-	var v tuple.Value = tuple.Int32Value{Value: 1}
+	var v tuple.Value = tuple.NewInt32Value(1)
 
 	if v.Type() != catalog.TypeInt32Type {
 		t.Errorf("Type() = %v, want %v", v.Type(), catalog.TypeInt32Type)

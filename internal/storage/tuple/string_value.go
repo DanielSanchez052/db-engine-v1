@@ -10,6 +10,12 @@ type StringValue struct {
 	Value string
 }
 
+func NewStringValue(value string) *StringValue {
+	return &StringValue{
+		Value: value,
+	}
+}
+
 func NewStringValueFromBytes(data []byte) (*StringValue, error) {
 	if len(data) < catalog.StringLengthSize {
 		return nil, ErrInvalidValue
