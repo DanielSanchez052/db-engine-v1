@@ -77,3 +77,24 @@ func (db *Database) GetTuple(tableName string, rid *heapfile.RecordID) (tuple.Tu
 
 	return *recordTuple, nil
 }
+
+func (db *Database) Delete(tableName string, rid *heapfile.RecordID) error {
+	if len(tableName) == 0 {
+		return ErrInvalidTableName
+	}
+
+	if rid == nil {
+		return ErrInvalidRecordID
+	}
+
+	if _, exists := db.catalog.GetTable(tableName); !exists {
+		return ErrTableNotFound
+	}
+
+	heap, err := db.OpenHeapFile(tableName)
+	if err != nil {
+		return err
+	}
+
+	return heap.DeleteRecord(rid)
+}
